@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Escalas</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 30px auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input, select, textarea { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { background-color: #28a745; color: white; border: none; padding: 12px; width: 100%; font-size: 16px; cursor: pointer; border-radius: 4px; }
+        button:hover { background-color: #218838; }
+        #status { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>Preencher Escala do Dia</h2>
+
+    <form id="escalaForm">
+        <div class="form-group">
+            <label for="data">Data da Escala:</label>
+            <input type="date" id="data" name="data" required>
+        </div>
+
+        <div class="form-group">
+            <label for="turno_06h">Turno 06:00H (Caixas/Atendimento):</label>
+            <input type="text" id="turno_06h" name="turno_06h" placeholder="Ex: Gislane, Renata">
+        </div>
+
+        <div class="form-group">
+            <label for="fiscais_manha">Fiscal Manhã:</label>
+            <input type="text" id="fiscais_manha" name="fiscais_manha" placeholder="Ex: Cinara">
+        </div>
+
+        <div class="form-group">
+            <label for="folgas">Folgas do Dia:</label>
+            <input type="text" id="folgas" name="folgas" placeholder="Ex: Pedro, Naftaly">
+        </div>
+
+        <button type="submit" id="btnSubmit">Gerar PDF da Escala</button>
+    </form>
+
+    <div id="status"></div>
+
+    <script>
+        const WEBHOOK_URL = 'COLOQUE_SUA_URL_DO_N8N_AQUI';
+
+        document.getElementById('escalaForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('btnSubmit');
+            const statusDiv = document.getElementById('status');
+            
+            btn.disabled = true;
+            statusDiv.style.color = 'black';
+            statusDiv.innerText = 'Enviando para o n8n e gerando PDF...';
+
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    statusDiv.style.color = 'green';
+                    statusDiv.innerText = 'Escala enviada com sucesso!';
+                    
+                    // Se o n8n devolver a URL do PDF gerado:
+                    if (result.pdfUrl) {
+                        statusDiv.innerHTML += `<br><a href="${result.pdfUrl}" target="_blank">Clique aqui para abrir o PDF</a>`;
+                    }
+                } else {
+                    throw new Error('Erro ao processar requisição');
+                }
+            } catch (err) {
+                statusDiv.style.color = 'red';
+                statusDiv.innerText = 'Erro ao enviar dados. Tente novamente.';
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

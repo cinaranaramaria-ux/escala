@@ -3,85 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Escalas</title>
+    <title>Gerador de Escala de Trabalho</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 30px auto; padding: 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; }
-        input, select, textarea { width: 100%; padding: 8px; box-sizing: border-box; }
-        button { background-color: #28a745; color: white; border: none; padding: 12px; width: 100%; font-size: 16px; cursor: pointer; border-radius: 4px; }
-        button:hover { background-color: #218838; }
-        #status { margin-top: 15px; font-weight: bold; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; background-color: #f4f6f9; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { color: #333; margin-top: 0; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .full-width { grid-column: span 2; }
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
+        input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; border: none; padding: 14px; width: 100%; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 15px; }
+        button:hover { background-color: #0056b3; }
+        #status { margin-top: 15px; font-weight: bold; text-align: center; }
+        #previewContainer { margin-top: 25px; display: none; background: #fff; border: 1px solid #ddd; padding: 15px; }
     </style>
 </head>
 <body>
 
-    <h2>Preencher Escala do Dia</h2>
+    <div class="card">
+        <h2>Lançamento de Escala Diária</h2>
 
-    <form id="escalaForm">
-        <div class="form-group">
-            <label for="data">Data da Escala:</label>
-            <input type="date" id="data" name="data" required>
-        </div>
+        <form id="escalaForm">
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label for="data_escala">Data da Escala:</label>
+                    <input type="date" id="data_escala" name="data_escala" required>
+                </div>
 
-        <div class="form-group">
-            <label for="turno_06h">Turno 06:00H (Caixas/Atendimento):</label>
-            <input type="text" id="turno_06h" name="turno_06h" placeholder="Ex: Gislane, Renata">
-        </div>
+                <div class="form-group">
+                    <label for="turno_06h">Turno 06:00H:</label>
+                    <textarea id="turno_06h" name="turno_06h" rows="3" placeholder="Ex: Gislane, Renata, Marcelina, Melissa"></textarea>
+                </div>
 
-        <div class="form-group">
-            <label for="fiscais_manha">Fiscal Manhã:</label>
-            <input type="text" id="fiscais_manha" name="fiscais_manha" placeholder="Ex: Cinara">
-        </div>
+                <div class="form-group">
+                    <label for="turno_08h">Turno 08:00H:</label>
+                    <textarea id="turno_08h" name="turno_08h" rows="3" placeholder="Ex: Otávio, Ana Clara, Adre, Gustavo"></textarea>
+                </div>
 
-        <div class="form-group">
-            <label for="folgas">Folgas do Dia:</label>
-            <input type="text" id="folgas" name="folgas" placeholder="Ex: Pedro, Naftaly">
-        </div>
+                <div class="form-group">
+                    <label for="turno_11h">Turno 11:00H:</label>
+                    <textarea id="turno_11h" name="turno_11h" rows="3" placeholder="Ex: Marciwel, Geisyane, Eliton, Davi"></textarea>
+                </div>
 
-        <button type="submit" id="btnSubmit">Gerar PDF da Escala</button>
-    </form>
+                <div class="form-group">
+                    <label for="turno_12h40">Turno 12:40H:</label>
+                    <textarea id="turno_12h40" name="turno_12h40" rows="3" placeholder="Ex: Camila, Brenna, Wesley, Sofia"></textarea>
+                </div>
 
-    <div id="status"></div>
+                <div class="form-group">
+                    <label for="fiscais">Fiscais de Loja:</label>
+                    <textarea id="fiscais" name="fiscais" rows="2" placeholder="Ex: Cinara (06h), Cleidiane (12:40h)"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="folgas">Folgas do Dia:</label>
+                    <textarea id="folgas" name="folgas" rows="2" placeholder="Ex: Pedro, Naftaly, Arley, Rita"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="jovem_aprendiz">Jovem Aprendiz:</label>
+                    <input type="text" id="jovem_aprendiz" name="jovem_aprendiz" placeholder="Ex: Jairo">
+                </div>
+
+                <div class="form-group">
+                    <label for="escala_app">Escala APP / Part-Time:</label>
+                    <textarea id="escala_app" name="escala_app" rows="2" placeholder="Ex: Ester, Daniel, Lucivanda, Kevin"></textarea>
+                </div>
+            </div>
+
+            <button type="submit" id="btnSubmit">Salvar e Gerar Escala</button>
+        </form>
+
+        <div id="status"></div>
+    </div>
+
+    <div id="previewContainer" class="card">
+        <h3>Pré-visualização da Escala</h3>
+        <div id="previewContent"></div>
+    </div>
 
     <script>
-        const WEBHOOK_URL = 'COLOQUE_SUA_URL_DO_N8N_AQUI';
+        // Substitua pela sua URL do Supabase ou do Webhook do n8n
+        const ENDPOINT_URL = 'https://n8n.orbbotia.com/webhook/gerar-escala';
+       
 
         document.getElementById('escalaForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const btn = document.getElementById('btnSubmit');
             const statusDiv = document.getElementById('status');
-            
+            const previewContainer = document.getElementById('previewContainer');
+            const previewContent = document.getElementById('previewContent');
+
             btn.disabled = true;
-            statusDiv.style.color = 'black';
-            statusDiv.innerText = 'Enviando para o n8n e gerando PDF...';
+            statusDiv.style.color = '#333';
+            statusDiv.innerText = 'Processando e salvando escala...';
 
             const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
+            const payload = Object.fromEntries(formData.entries());
 
             try {
-                const response = await fetch(WEBHOOK_URL, {
+                // Envio dos dados via POST
+                const response = await fetch(ENDPOINT_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Prefer': 'return=representation' // Retorna os dados inseridos
+                    },
+                    body: JSON.stringify(payload)
                 });
 
                 if (response.ok) {
-                    const result = await response.json();
                     statusDiv.style.color = 'green';
-                    statusDiv.innerText = 'Escala enviada com sucesso!';
-                    
-                    // Se o n8n devolver a URL do PDF gerado:
-                    if (result.pdfUrl) {
-                        statusDiv.innerHTML += `<br><a href="${result.pdfUrl}" target="_blank">Clique aqui para abrir o PDF</a>`;
-                    }
+                    statusDiv.innerText = 'Escala salva com sucesso!';
+
+                    // Exibe a pré-visualização formatada na própria página
+                    previewContainer.style.display = 'block';
+                    previewContent.innerHTML = `
+                        <h4>ESCALA DE TRABALHO - ${payload.data_escala}</h4>
+                        <p><strong>06:00H:</strong> ${payload.turno_06h || '-'}</p>
+                        <p><strong>08:00H:</strong> ${payload.turno_08h || '-'}</p>
+                        <p><strong>11:00H:</strong> ${payload.turno_11h || '-'}</p>
+                        <p><strong>12:40H:</strong> ${payload.turno_12h40 || '-'}</p>
+                        <p><strong>Fiscais:</strong> ${payload.fiscais || '-'}</p>
+                        <p><strong>Folgas:</strong> ${payload.folgas || '-'}</p>
+                    `;
                 } else {
-                    throw new Error('Erro ao processar requisição');
+                    throw new Error('Erro na requisição: ' + response.statusText);
                 }
             } catch (err) {
                 statusDiv.style.color = 'red';
-                statusDiv.innerText = 'Erro ao enviar dados. Tente novamente.';
+                statusDiv.innerText = 'Erro ao salvar a escala. Verifique as credenciais ou a conexão.';
                 console.error(err);
             } finally {
                 btn.disabled = false;

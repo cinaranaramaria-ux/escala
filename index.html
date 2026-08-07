@@ -291,12 +291,26 @@
             margin-top: 10px;
         }
 
+        /* CONFIGURAÇÃO DE IMPRESSÃO SEM CABEÇALHO/RODAPÉ */
+        @page {
+            size: auto;
+            margin: 10mm; /* Remove o rodapé e cabeçalho padrão do navegador mantendo a margem do papel */
+        }
+
         @media print {
-            body { background: white; margin: 0; padding: 0; }
+            body { 
+                background: white !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                max-width: 100% !important;
+            }
             .tabs, .print-hide { display: none !important; }
-            .card { box-shadow: none; border: none; padding: 0; margin: 0; }
+            .card { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; }
             .table-responsive-wrapper { overflow: visible !important; }
             .ocultar-impressao { display: none !important; }
+            
+            /* Ocultar elementos desnecessários na folha */
+            footer, header, nav { display: none !important; }
         }
     </style>
 </head>
@@ -497,12 +511,12 @@
 
     <script>
         // ================= NOVAS URLs DOS WEBHOOKS DO N8N =================
-        const N8N_WEBHOOK_URL = 'https://n8n.orbbotia.com/webhook/d17c2323-e3ac-4a9e-8dec-44f59d55857b'; // Webhook Receiver (Salvar Escala)
-        const N8N_BUSCA_URL   = 'https://n8n.orbbotia.com/webhook/27f5cac6-29f3-4154-9ce4-20facadd49cd'; // Webhook Busca (Buscar Escala)
+        const N8N_WEBHOOK_URL = 'https://n8n.orbbotia.com/webhook/d17c2323-e3ac-4a9e-8dec-44f59d55857b'; 
+        const N8N_BUSCA_URL   = 'https://n8n.orbbotia.com/webhook/27f5cac6-29f3-4154-9ce4-20facadd49cd'; 
         
-        const N8N_GET_FUNC    = 'https://n8n.orbbotia.com/webhook/87061e76-6891-430c-b53f-16e27f4db273'; // GET Funcionarios
-        const N8N_POST_FUNC   = 'https://n8n.orbbotia.com/webhook/5c9bc272-ce52-4192-9bd7-aeb1e41bf16f'; // POST Funcionario
-        const N8N_DEL_FUNC    = 'https://n8n.orbbotia.com/webhook/063c6df5-99ed-4cd6-927f-7c1702e02adc'; // DELETE Funcionario
+        const N8N_GET_FUNC    = 'https://n8n.orbbotia.com/webhook/87061e76-6891-430c-b53f-16e27f4db273'; 
+        const N8N_POST_FUNC   = 'https://n8n.orbbotia.com/webhook/5c9bc272-ce52-4192-9bd7-aeb1e41bf16f'; 
+        const N8N_DEL_FUNC    = 'https://n8n.orbbotia.com/webhook/063c6df5-99ed-4cd6-927f-7c1702e02adc'; 
 
         const camposTags = ['turno_06h', 'turno_08h', 'turno_11h', 'turno_12h40', 'folgas', 'jovem_aprendiz', 'escala_app'];
         let modoEdicao = false;

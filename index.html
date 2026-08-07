@@ -2,146 +2,1063 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Escala de Trabalho</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gerenciador de Escalas</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; background-color: #f4f6f9; }
-        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h2 { color: #333; margin-top: 0; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .full-width { grid-column: span 2; }
-        .form-group { margin-bottom: 10px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
-        input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { background-color: #007bff; color: white; border: none; padding: 14px; width: 100%; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 15px; }
-        button:hover { background-color: #0056b3; }
-        #status { margin-top: 15px; font-weight: bold; text-align: center; }
-        #previewContainer { margin-top: 25px; display: none; background: #fff; border: 1px solid #ddd; padding: 15px; }
+        :root {
+            --cor-primaria: #00b050;
+            --cor-secundaria: #ffc000;
+            --cor-alerta: #c00000;
+            --cor-bg: #f8fafc;
+            --cor-card: #ffffff;
+            --cor-texto: #1e293b;
+            --cor-borda: #cbd5e1;
+            --cor-hover: #1d4ed8;
+            --radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            max-width: 1050px; 
+            margin: 0 auto; 
+            padding: 12px; 
+            background: #f1f5f9; 
+            color: var(--cor-texto);
+            line-height: 1.5;
+        }
+
+        .card { 
+            background: var(--cor-card); 
+            padding: 20px; 
+            border-radius: var(--radius); 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            margin-bottom: 20px; 
+        }
+
+        h2, h3 { 
+            color: #0f172a; 
+            margin-top: 0; 
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        /* NAV ABAS RESPONSIVAS */
+        .tabs { 
+            display: flex; 
+            gap: 8px; 
+            margin-bottom: 16px; 
+            overflow-x: auto;
+            padding-bottom: 6px;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .tabs::-webkit-scrollbar { height: 4px; }
+        .tabs::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        .tab-btn { 
+            padding: 10px 16px; 
+            border: none; 
+            background: #e2e8f0; 
+            color: #475569;
+            font-weight: 600; 
+            font-size: 0.9rem;
+            cursor: pointer; 
+            border-radius: 20px;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .tab-btn.active { 
+            background: #2563eb; 
+            color: white; 
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.25s ease; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* GRID RESPONSIVO */
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr; 
+            gap: 14px; 
+        }
+        @media (min-width: 640px) {
+            .grid { grid-template-columns: 1fr 1fr; }
+            .full { grid-column: span 2; }
+        }
+
+        label { 
+            font-weight: 600; 
+            display: block; 
+            margin-bottom: 6px; 
+            font-size: 0.875rem; 
+            color: #334155; 
+        }
+
+        input[type="text"], input[type="date"], textarea, select { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid var(--cor-borda); 
+            border-radius: 8px; 
+            font-size: 0.95rem;
+            background: #fff;
+            color: var(--cor-texto);
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        input[type="color"] { 
+            border: none; 
+            height: 42px; 
+            width: 100%; 
+            cursor: pointer; 
+            padding: 0; 
+            border-radius: 8px; 
+        }
+
+        .hint { 
+            font-size: 0.75rem; 
+            color: #64748b; 
+            font-weight: normal; 
+        }
+
+        button { touch-action: manipulation; }
+        button.btn-main { 
+            background: #2563eb; 
+            color: white; 
+            border: none; 
+            padding: 14px 20px; 
+            font-size: 1rem; 
+            font-weight: 700; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            width: 100%; 
+            margin-top: 15px; 
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+            transition: background 0.2s;
+        }
+        button.btn-main:active { background: var(--cor-hover); }
+
+        button.btn-action { 
+            background: #0f766e; 
+            color: white; 
+            border: none; 
+            padding: 10px 16px; 
+            font-size: 0.875rem;
+            font-weight: 600;
+            border-radius: 6px; 
+            cursor: pointer; 
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        button.btn-danger { 
+            background: #ef4444; 
+            color: white; 
+            border: none; 
+            padding: 8px 12px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold;
+        }
+
+        .alerta-falta { 
+            background: #fef2f2; 
+            border-left: 4px solid #ef4444; 
+            padding: 12px; 
+            border-radius: 6px;
+            margin-bottom: 15px; 
+            font-size: 0.875rem; 
+            color: #991b1b; 
+            display: none; 
+        }
+
+        /* CAMPO DE BUSCA COM LUPA */
+        .search-box {
+            position: relative;
+            margin-bottom: 12px;
+        }
+        .search-box input {
+            padding-left: 38px;
+        }
+        .search-box .icon-lupa {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1rem;
+            color: #94a3b8;
+            pointer-events: none;
+        }
+
+        /* TAGS / CHIPS */
+        .tag-container { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 6px; 
+            padding: 8px; 
+            border: 1px solid var(--cor-borda); 
+            border-radius: 8px; 
+            min-height: 48px; 
+            background: #f8fafc; 
+            margin-bottom: 8px; 
+            align-items: center;
+        }
+        .tag { 
+            background: #e2e8f0; 
+            border: 1px solid #cbd5e1; 
+            padding: 6px 12px; 
+            border-radius: 20px; 
+            font-size: 0.85rem; 
+            font-weight: 700; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 8px; 
+        }
+        .tag span.remover { 
+            cursor: pointer; 
+            color: #ef4444; 
+            font-weight: 800; 
+            font-size: 1rem;
+            padding: 0 2px;
+        }
+
+        /* PAINEL COMPACTO DE REFERÊNCIA DE FOLGAS */
+        .painel-folgas-ref {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+        .btn-dia-filtro {
+            padding: 6px 12px;
+            border: 1px solid #86efac;
+            background: #fff;
+            border-radius: 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+        .btn-dia-filtro.active {
+            background: #16a34a;
+            color: white;
+            border-color: #16a34a;
+        }
+
+        /* LISTA FUNCIONÁRIOS */
+        .func-list { 
+            display: grid; 
+            grid-template-columns: 1fr; 
+            gap: 10px; 
+            margin-top: 15px; 
+        }
+        @media (min-width: 640px) {
+            .func-list { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+        }
+        .func-item { 
+            background: #f8fafc; 
+            padding: 14px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 8px; 
+        }
+
+        .table-responsive-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        @media print {
+            body { background: white; margin: 0; padding: 0; }
+            .tabs, .print-hide { display: none !important; }
+            .card { box-shadow: none; border: none; padding: 0; margin: 0; }
+            .table-responsive-wrapper { overflow: visible !important; }
+            .ocultar-impressao { display: none !important; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>Lançamento de Escala Diária</h2>
+    <!-- NAVEGAÇÃO SUPERIOR RESPONSIVA -->
+    <div class="tabs print-hide">
+        <button class="tab-btn active" onclick="openTab('cadastrar')">📝 Nova / Editar</button>
+        <button class="tab-btn" onclick="openTab('vigente')">📅 Escala de Hoje</button>
+        <button class="tab-btn" onclick="openTab('historico')">🔍 Histórico</button>
+        <button class="tab-btn" onclick="openTab('funcionarios')">👥 Colaboradores</button>
+        <button class="tab-btn" onclick="openTab('configuracoes')" style="background-color: #475569; color: white;">⚙️ Configs</button>
+    </div>
 
-        <form id="escalaForm">
-            <div class="form-grid">
-                <div class="form-group full-width">
-                    <label for="data_escala">Data da Escala:</label>
-                    <input type="date" id="data_escala" name="data_escala" required>
+    <!-- ABA 1: FORMULÁRIO -->
+    <div id="cadastrar" class="tab-content active print-hide">
+        <div class="card">
+            <h2>Lançamento da Escala</h2>
+            <div id="alertaFaltando" class="alerta-falta"></div>
+            
+            <!-- PAINEL DE REFERÊNCIA RÁPIDA DE FOLGAS FIXAS -->
+            <div class="painel-folgas-ref">
+                <div style="font-size: 0.85rem; font-weight: 700; color: #166534; margin-bottom: 8px;">
+                    📅 Referência de Folgas Fixas da Semana:
                 </div>
-
-                <div class="form-group">
-                    <label for="turno_06h">Turno 06:00H:</label>
-                    <textarea id="turno_06h" name="turno_06h" rows="3" placeholder="Ex: Gislane, Renata, Marcelina, Melissa"></textarea>
+                <div>
+                    <button type="button" class="btn-dia-filtro" onclick="filtrarRefFolgas('1', this)">Seg</button>
+                    <button type="button" class="btn-dia-filtro" onclick="filtrarRefFolgas('2', this)">Ter</button>
+                    <button type="button" class="btn-dia-filtro" onclick="filtrarRefFolgas('3', this)">Qua</button>
+                    <button type="button" class="btn-dia-filtro" onclick="filtrarRefFolgas('4', this)">Qui</button>
+                    <button type="button" class="btn-dia-filtro" onclick="filtrarRefFolgas('5', this)">Sex</button>
+                    <button type="button" class="btn-dia-filtro" onclick="filtrarRefFolgas('6', this)">Sáb</button>
+                    <button type="button" class="btn-dia-filtro" onclick="filtrarRefFolgas('0', this)">Dom</button>
                 </div>
-
-                <div class="form-group">
-                    <label for="turno_08h">Turno 08:00H:</label>
-                    <textarea id="turno_08h" name="turno_08h" rows="3" placeholder="Ex: Otávio, Ana Clara, Adre, Gustavo"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="turno_11h">Turno 11:00H:</label>
-                    <textarea id="turno_11h" name="turno_11h" rows="3" placeholder="Ex: Marciwel, Geisyane, Eliton, Davi"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="turno_12h40">Turno 12:40H:</label>
-                    <textarea id="turno_12h40" name="turno_12h40" rows="3" placeholder="Ex: Camila, Brenna, Wesley, Sofia"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="fiscais">Fiscais de Loja:</label>
-                    <textarea id="fiscais" name="fiscais" rows="2" placeholder="Ex: Cinara (06h), Cleidiane (12:40h)"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="folgas">Folgas do Dia:</label>
-                    <textarea id="folgas" name="folgas" rows="2" placeholder="Ex: Pedro, Naftaly, Arley, Rita"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="jovem_aprendiz">Jovem Aprendiz:</label>
-                    <input type="text" id="jovem_aprendiz" name="jovem_aprendiz" placeholder="Ex: Jairo">
-                </div>
-
-                <div class="form-group">
-                    <label for="escala_app">Escala APP / Part-Time:</label>
-                    <textarea id="escala_app" name="escala_app" rows="2" placeholder="Ex: Ester, Daniel, Lucivanda, Kevin"></textarea>
+                <div id="listaRefFolgasResumo" style="font-size: 0.85rem; margin-top: 8px; font-weight: 600; color: #15803d;">
+                    Selecione um dia acima para consultar os folgantes.
                 </div>
             </div>
 
-            <button type="submit" id="btnSubmit">Salvar e Gerar Escala</button>
-        </form>
+            <form id="escalaForm">
+                <div class="grid">
+                    <div class="form-group full">
+                        <label>Data da Escala:</label>
+                        <input type="date" id="data_escala" name="data_escala" required>
+                    </div>
 
-        <div id="status"></div>
+                    <!-- FILTRO RÁPIDO NOS SELECTS DO FORMULÁRIO -->
+                    <div class="form-group full">
+                        <div class="search-box" style="margin-bottom:0;">
+                            <span class="icon-lupa">🔍</span>
+                            <input type="text" id="filtro_form_colab" placeholder="Filtrar colaboradores nos seletores..." oninput="atualizarOpcoesDropdown()">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Turno 06:00H <span class="hint" id="lbl_int_06"></span></label>
+                        <div class="tag-container" id="tags_turno_06h"></div>
+                        <select class="func-select" onchange="addTag('turno_06h', this)"></select>
+                        <input type="hidden" id="turno_06h" name="turno_06h">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Turno 08:00H <span class="hint" id="lbl_int_08"></span></label>
+                        <div class="tag-container" id="tags_turno_08h"></div>
+                        <select class="func-select" onchange="addTag('turno_08h', this)"></select>
+                        <input type="hidden" id="turno_08h" name="turno_08h">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Turno 11:00H <span class="hint" id="lbl_int_11"></span></label>
+                        <div class="tag-container" id="tags_turno_11h"></div>
+                        <select class="func-select" onchange="addTag('turno_11h', this)"></select>
+                        <input type="hidden" id="turno_11h" name="turno_11h">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Turno 12:40H <span class="hint" id="lbl_int_12"></span></label>
+                        <div class="tag-container" id="tags_turno_12h40"></div>
+                        <select class="func-select" onchange="addTag('turno_12h40', this)"></select>
+                        <input type="hidden" id="turno_12h40" name="turno_12h40">
+                    </div>
+
+                    <div class="form-group full" style="background: #f1f5f9; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                        <label style="color: #0f766e;">🛡️ Fiscais de Loja (Horários)</label>
+                        <div id="containerFiscais" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;"></div>
+                        <button type="button" onclick="addFiscalUI()" class="btn-action" style="background: #0f766e;">+ Adicionar Fiscal</button>
+                        <input type="hidden" id="fiscais" name="fiscais">
+                    </div>
+
+                    <div class="form-group full">
+                        <label>Folgas do Dia:</label>
+                        <div class="tag-container" id="tags_folgas"></div>
+                        <select class="func-select" onchange="addTag('folgas', this)"></select>
+                        <input type="hidden" id="folgas" name="folgas">
+                    </div>
+
+                    <input type="hidden" id="jovem_aprendiz" name="jovem_aprendiz">
+                    <input type="hidden" id="escala_app" name="escala_app">
+                    <input type="hidden" id="json_excecoes" name="json_excecoes">
+
+                    <div class="form-group full">
+                        <label>Observações Gerais / Exceções / Férias / ASO:</label>
+                        <textarea id="observacoes" name="observacoes" rows="3" placeholder="Insira exceções de intervalo, avisos de ASO, férias ou observações do dia..."></textarea>
+                    </div>
+                </div>
+                <button type="submit" class="btn-main" id="btnSubmit">💾 Salvar Escala</button>
+            </form>
+            <div id="status" style="margin-top: 10px; font-weight: bold; text-align: center;"></div>
+        </div>
     </div>
 
-    <div id="previewContainer" class="card">
-        <h3>Pré-visualização da Escala</h3>
-        <div id="previewContent"></div>
+    <!-- ABA 2 e 3: VISUALIZAÇÃO -->
+    <div id="vigente" class="tab-content">
+        <div class="card" id="areaImpressaoHoje">
+            <div class="print-hide" style="margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn-action" onclick="carregarEscalaHoje()">🔄 Atualizar</button>
+                <button class="btn-action" style="background:#2563eb;" onclick="window.print()">🖨️ Imprimir PDF</button>
+            </div>
+            <div id="escalaHojeContainer">Clique no botão para carregar a escala de hoje.</div>
+        </div>
+    </div>
+
+    <div id="historico" class="tab-content">
+        <div class="card">
+            <h3 class="print-hide">Consultar Escalas Anteriores</h3>
+            <div class="print-hide" style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
+                <input type="date" id="data_busca" style="width: auto; flex-grow: 1;">
+                <button class="btn-action" onclick="buscarHistorico()">Buscar</button>
+                <button class="btn-action" style="background:#2563eb;" onclick="window.print()">🖨️ PDF</button>
+            </div>
+            <div id="historicoContainer">Selecione uma data para consultar.</div>
+        </div>
+    </div>
+
+    <!-- ABA 4: FUNCIONÁRIOS -->
+    <div id="funcionarios" class="tab-content print-hide">
+        <div class="card">
+            <h2>👥 Base de Colaboradores (Nuvem)</h2>
+            <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <input type="hidden" id="func_id">
+                <div class="grid">
+                    <div><label>Nome do Funcionário</label><input type="text" id="func_nome"></div>
+                    <div><label>Cor na Tabela</label><input type="color" id="func_cor" value="#000000"></div>
+                    <div>
+                        <label>Folga Fixa Semanal</label>
+                        <select id="func_folga_fixa">
+                            <option value="">Nenhuma</option>
+                            <option value="0">Domingo</option>
+                            <option value="1">Segunda-feira</option>
+                            <option value="2">Terça-feira</option>
+                            <option value="3">Quarta-feira</option>
+                            <option value="4">Quinta-feira</option>
+                            <option value="5">Sexta-feira</option>
+                            <option value="6">Sábado</option>
+                        </select>
+                    </div>
+                    <div style="padding-top: 10px;" class="full">
+                        <label style="display:inline-flex; align-items:center; gap:8px;"><input type="checkbox" id="func_alerta" checked style="width:auto;"> Ativar Alerta de Falta</label>
+                    </div>
+                </div>
+                <div class="grid" style="margin-top: 10px;">
+                    <div><label>Férias Início (Opcional)</label><input type="date" id="func_ferias_ini"></div>
+                    <div><label>Férias Fim (Opcional)</label><input type="date" id="func_ferias_fim"></div>
+                    <div class="full"><button class="btn-action" onclick="salvarFuncionario()" id="btnSalvarFunc" style="width:100%; justify-content:center; padding:12px;">💾 Salvar Colaborador</button></div>
+                </div>
+            </div>
+
+            <!-- BUSCA POR LUPA -->
+            <div class="search-box">
+                <span class="icon-lupa">🔍</span>
+                <input type="text" id="busca_colaboradores" placeholder="Buscar colaborador por nome..." oninput="renderizarFuncionarios()">
+            </div>
+
+            <div id="listaFuncionarios" class="func-list"></div>
+        </div>
+    </div>
+
+    <!-- ABA 5: CONFIGURAÇÕES LOCAIS -->
+    <div id="configuracoes" class="tab-content print-hide">
+        <div class="card">
+            <h2>🎨 Cores da Escala</h2>
+            <div class="grid">
+                <div class="form-group"><label>Cor Principal (Cabeçalho):</label><input type="color" id="cfg_cor_primaria" value="#00b050"></div>
+                <div class="form-group"><label>Cor Secundária (Subtítulos):</label><input type="color" id="cfg_cor_secundaria" value="#ffc000"></div>
+                <div class="form-group"><label>Cor das Folgas (Texto):</label><input type="color" id="cfg_cor_alerta" value="#c00000"></div>
+            </div>
+            <br>
+            <h2>⚙️ Padrões de Intervalo</h2>
+            <div class="grid">
+                <div class="form-group"><label>Turno 06:00H:</label><input type="text" id="cfg_int_06" value="11:00/13:00"></div>
+                <div class="form-group"><label>Turno 08:00H:</label><input type="text" id="cfg_int_08" value="12:40/14:40"></div>
+                <div class="form-group"><label>Turno 11:00H:</label><input type="text" id="cfg_int_11" value="14:00/16:00"></div>
+                <div class="form-group"><label>Turno 12:40H:</label><input type="text" id="cfg_int_12" value="15:00/17:00"></div>
+            </div>
+            <button class="btn-main" onclick="salvarConfiguracoes()" style="background:#0f766e;">💾 Salvar Configurações Locais</button>
+        </div>
     </div>
 
     <script>
-        // Substitua pela sua URL do Supabase ou do Webhook do n8n
-        const ENDPOINT_URL = 'https://n8n.orbbotia.com/webhook/gerar-escala';
-       
+        // ================= NOVAS URLs DOS WEBHOOKS DO N8N =================
+        const N8N_WEBHOOK_URL = 'https://n8n.orbbotia.com/webhook/d17c2323-e3ac-4a9e-8dec-44f59d55857b'; // Webhook Receiver (Salvar Escala)
+        const N8N_BUSCA_URL   = 'https://n8n.orbbotia.com/webhook/27f5cac6-29f3-4154-9ce4-20facadd49cd'; // Webhook Busca (Buscar Escala)
+        
+        const N8N_GET_FUNC    = 'https://n8n.orbbotia.com/webhook/87061e76-6891-430c-b53f-16e27f4db273'; // GET Funcionarios
+        const N8N_POST_FUNC   = 'https://n8n.orbbotia.com/webhook/5c9bc272-ce52-4192-9bd7-aeb1e41bf16f'; // POST Funcionario
+        const N8N_DEL_FUNC    = 'https://n8n.orbbotia.com/webhook/063c6df5-99ed-4cd6-927f-7c1702e02adc'; // DELETE Funcionario
 
-        document.getElementById('escalaForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        const camposTags = ['turno_06h', 'turno_08h', 'turno_11h', 'turno_12h40', 'folgas', 'jovem_aprendiz', 'escala_app'];
+        let modoEdicao = false;
 
-            const btn = document.getElementById('btnSubmit');
-            const statusDiv = document.getElementById('status');
-            const previewContainer = document.getElementById('previewContainer');
-            const previewContent = document.getElementById('previewContent');
+        function getHojeISO() {
+            const h = new Date();
+            const y = h.getFullYear();
+            const m = String(h.getMonth() + 1).padStart(2, '0');
+            const d = String(h.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
 
-            btn.disabled = true;
-            statusDiv.style.color = '#333';
-            statusDiv.innerText = 'Processando e salvando escala...';
+        document.getElementById('data_escala').value = getHojeISO();
 
-            const formData = new FormData(e.target);
-            const payload = Object.fromEntries(formData.entries());
+        // ================= CONFIGURAÇÕES =================
+        const configPadrao = { int_06: '11:00/13:00', int_08: '12:40/14:40', int_11: '14:00/16:00', int_12: '15:00/17:00', c1: '#00b050', c2: '#ffc000', c3: '#c00000' };
+        function carregarConfiguracoes() {
+            ['06', '08', '11', '12'].forEach(t => {
+                const val = localStorage.getItem(`int_${t}`) || configPadrao[`int_${t}`];
+                document.getElementById(`cfg_int_${t}`).value = val;
+                if(document.getElementById(`lbl_int_${t}`)) document.getElementById(`lbl_int_${t}`).innerText = `(${val})`;
+            });
+            document.documentElement.style.setProperty('--cor-primaria', localStorage.getItem('c1') || configPadrao.c1);
+            document.documentElement.style.setProperty('--cor-secundaria', localStorage.getItem('c2') || configPadrao.c2);
+            document.documentElement.style.setProperty('--cor-alerta', localStorage.getItem('c3') || configPadrao.c3);
+            
+            document.getElementById('cfg_cor_primaria').value = localStorage.getItem('c1') || configPadrao.c1;
+            document.getElementById('cfg_cor_secundaria').value = localStorage.getItem('c2') || configPadrao.c2;
+            document.getElementById('cfg_cor_alerta').value = localStorage.getItem('c3') || configPadrao.c3;
+        }
+        function salvarConfiguracoes() {
+            ['06', '08', '11', '12'].forEach(t => localStorage.setItem(`int_${t}`, document.getElementById(`cfg_int_${t}`).value));
+            localStorage.setItem('c1', document.getElementById('cfg_cor_primaria').value);
+            localStorage.setItem('c2', document.getElementById('cfg_cor_secundaria').value);
+            localStorage.setItem('c3', document.getElementById('cfg_cor_alerta').value);
+            carregarConfiguracoes(); alert('Configurações Salvas Localmente!');
+        }
+        carregarConfiguracoes();
+
+        // ================= FUNCIONÁRIOS (NUVEM) =================
+        let funcionarios = [];
+
+        async function carregarFuncionariosNuvem() {
+            document.getElementById('listaFuncionarios').innerHTML = '<em>Sincronizando com o banco de dados...</em>';
+            try {
+                const res = await fetch(N8N_GET_FUNC);
+                let dados = await res.json();
+                
+                if (!Array.isArray(dados)) {
+                    if (dados && dados.id) {
+                        dados = [dados];
+                    } else if (dados && dados.data && Array.isArray(dados.data)) {
+                        dados = dados.data;
+                    } else if (dados && typeof dados === 'object') {
+                        dados = Object.values(dados).filter(d => d && d.id);
+                    } else {
+                        dados = [];
+                    }
+                }
+
+                funcionarios = dados.map(f => ({
+                    id: f.id, nome: f.nome, cor: f.cor, alerta: f.alerta,
+                    folgaFixa: f.folga_fixa !== undefined && f.folga_fixa !== null ? String(f.folga_fixa) : '',
+                    feriasIni: f.ferias_ini ? f.ferias_ini.split('T')[0] : '',
+                    feriasFim: f.ferias_fim ? f.ferias_fim.split('T')[0] : ''
+                }));
+
+                renderizarFuncionarios(); 
+                autocompletarFolgasFixas();
+                atualizarOpcoesDropdown();
+                
+                const dt = document.getElementById('data_escala').value;
+                if(dt) {
+                    const p = dt.split('-');
+                    const dSemana = new Date(p[0], p[1]-1, p[2]).getDay().toString();
+                    const btnDom = document.querySelectorAll('.btn-dia-filtro')[dSemana === '0' ? 6 : parseInt(dSemana)-1];
+                    if(btnDom) btnDom.click();
+                }
+            } catch (e) {
+                document.getElementById('listaFuncionarios').innerHTML = '<span style="color:#64748b;">Nenhum colaborador encontrado no banco de dados.</span>';
+            }
+        }
+
+        async function salvarFuncionario() {
+            const idInput = document.getElementById('func_id').value;
+            const nome = document.getElementById('func_nome').value.trim();
+            const cor = document.getElementById('func_cor').value;
+            const alerta = document.getElementById('func_alerta').checked;
+            const folgaFixa = document.getElementById('func_folga_fixa').value;
+            const feriasIni = document.getElementById('func_ferias_ini').value;
+            const feriasFim = document.getElementById('func_ferias_fim').value;
+
+            if(!nome) return alert('Digite um nome!');
+
+            const duplicado = funcionarios.find(f => f.nome.toLowerCase() === nome.toLowerCase() && f.id !== idInput);
+            if(duplicado) {
+                return alert(`Já existe um colaborador cadastrado com o nome "${nome}". Por favor, utilize um nome diferente.`);
+            }
+
+            if((feriasIni && !feriasFim) || (!feriasIni && feriasFim)) return alert('Preencha as duas datas de férias (Início e Fim).');
+
+            const payload = { 
+                id: idInput || Date.now().toString(), 
+                nome, cor, alerta, 
+                folga_fixa: folgaFixa,
+                ferias_ini: feriasIni, 
+                ferias_fim: feriasFim 
+            };
+            const btn = document.getElementById('btnSalvarFunc');
+            btn.innerText = 'Salvando...'; btn.disabled = true;
 
             try {
-                // Envio dos dados via POST
-                const response = await fetch(ENDPOINT_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Prefer': 'return=representation' // Retorna os dados inseridos
-                    },
-                    body: JSON.stringify(payload)
-                });
+                const res = await fetch(N8N_POST_FUNC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if(res.ok) {
+                    document.getElementById('func_id').value = ''; 
+                    document.getElementById('func_nome').value = ''; 
+                    document.getElementById('func_cor').value = '#000000'; 
+                    document.getElementById('func_folga_fixa').value = '';
+                    document.getElementById('func_ferias_ini').value = ''; 
+                    document.getElementById('func_ferias_fim').value = '';
+                    await carregarFuncionariosNuvem();
+                } else { alert('Erro ao salvar no banco.'); }
+            } catch(e) { alert('Erro de conexão.'); } finally { btn.innerText = '💾 Salvar Colaborador'; btn.disabled = false; }
+        }
 
-                if (response.ok) {
-                    statusDiv.style.color = 'green';
-                    statusDiv.innerText = 'Escala salva com sucesso!';
-
-                    // Exibe a pré-visualização formatada na própria página
-                    previewContainer.style.display = 'block';
-                    previewContent.innerHTML = `
-                        <h4>ESCALA DE TRABALHO - ${payload.data_escala}</h4>
-                        <p><strong>06:00H:</strong> ${payload.turno_06h || '-'}</p>
-                        <p><strong>08:00H:</strong> ${payload.turno_08h || '-'}</p>
-                        <p><strong>11:00H:</strong> ${payload.turno_11h || '-'}</p>
-                        <p><strong>12:40H:</strong> ${payload.turno_12h40 || '-'}</p>
-                        <p><strong>Fiscais:</strong> ${payload.fiscais || '-'}</p>
-                        <p><strong>Folgas:</strong> ${payload.folgas || '-'}</p>
-                    `;
-                } else {
-                    throw new Error('Erro na requisição: ' + response.statusText);
-                }
-            } catch (err) {
-                statusDiv.style.color = 'red';
-                statusDiv.innerText = 'Erro ao salvar a escala. Verifique as credenciais ou a conexão.';
-                console.error(err);
-            } finally {
-                btn.disabled = false;
+        function editarFunc(id) {
+            const f = funcionarios.find(x => x.id === id);
+            if(f) {
+                document.getElementById('func_id').value = f.id; 
+                document.getElementById('func_nome').value = f.nome;
+                document.getElementById('func_cor').value = f.cor || '#000000'; 
+                document.getElementById('func_alerta').checked = f.alerta;
+                document.getElementById('func_folga_fixa').value = f.folgaFixa || '';
+                document.getElementById('func_ferias_ini').value = f.feriasIni || ''; 
+                document.getElementById('func_ferias_fim').value = f.feriasFim || '';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
+        }
+
+        async function excluirFunc(id) {
+            if(confirm('Tem certeza que deseja excluir esse funcionário do banco de dados?')) {
+                try {
+                    const res = await fetch(N8N_DEL_FUNC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
+                    if(res.ok) await carregarFuncionariosNuvem(); else alert('Erro ao excluir no servidor.');
+                } catch(e) { alert('Erro de conexão.'); }
+            }
+        }
+
+        function isDeFerias(func, dataRefStr) {
+            if (!func.feriasIni || !func.feriasFim || !dataRefStr) return false;
+            const ref = dataRefStr.split('T')[0];
+            const ini = func.feriasIni.split('T')[0];
+            const fim = func.feriasFim.split('T')[0];
+            return (ref >= ini && ref <= fim);
+        }
+
+        function formatarDataBR(iso) { return iso ? iso.split('T')[0].split('-').reverse().join('/') : ''; }
+
+        const diasSemanaNome = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+
+        function renderizarFuncionarios() {
+            if (funcionarios.length === 0) {
+                document.getElementById('listaFuncionarios').innerHTML = '<p style="color:#64748b;">Nenhum colaborador cadastrado no banco de dados.</p>';
+                return;
+            }
+
+            const termo = (document.getElementById('busca_colaboradores') ? document.getElementById('busca_colaboradores').value : '').toLowerCase().trim();
+            const filtrados = funcionarios.filter(f => f.nome.toLowerCase().includes(termo));
+
+            if(filtrados.length === 0) {
+                document.getElementById('listaFuncionarios').innerHTML = '<p style="color:#64748b; font-size:0.9rem;">Nenhum colaborador encontrado para essa busca.</p>';
+                return;
+            }
+
+            document.getElementById('listaFuncionarios').innerHTML = filtrados.map(f => {
+                let tagFerias = '';
+                if(f.feriasIni && f.feriasFim) tagFerias = `<div style="font-size:12px; color:#d97706; margin-top:2px;">🏖️ Férias: ${formatarDataBR(f.feriasIni)} a ${formatarDataBR(f.feriasFim)}</div>`;
+                
+                let tagFolga = '';
+                if(f.folgaFixa !== undefined && f.folgaFixa !== '') {
+                    tagFolga = `<div style="font-size:12px; color:#0f766e; margin-top:2px;">🔄 Folga Fixa: ${diasSemanaNome[parseInt(f.folgaFixa)]}</div>`;
+                }
+
+                return `
+                <div class="func-item">
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                        <span style="color: ${f.cor}; font-weight:bold;">${f.nome} ${f.alerta ? '🔔' : '🔕'}</span>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn-action" style="padding:6px 10px;" onclick="editarFunc('${f.id}')">✏️</button>
+                            <button class="btn-danger" style="padding:6px 10px;" onclick="excluirFunc('${f.id}')">X</button>
+                        </div>
+                    </div>
+                    ${tagFolga}
+                    ${tagFerias}
+                </div>
+            `}).join('');
+        }
+
+        // ================= PAINEL DE REFERÊNCIA DE FOLGAS =================
+        function filtrarRefFolgas(diaNum, btnElement) {
+            document.querySelectorAll('.btn-dia-filtro').forEach(b => b.classList.remove('active'));
+            if(btnElement) btnElement.classList.add('active');
+
+            const folgantes = funcionarios.filter(f => f.folgaFixa === diaNum);
+            const container = document.getElementById('listaRefFolgasResumo');
+            
+            if(folgantes.length > 0) {
+                container.innerHTML = `Folgam na <strong>${diasSemanaNome[parseInt(diaNum)]}</strong>: <span style="color:#0f766e;">${folgantes.map(f => f.nome).join(', ')}</span>`;
+            } else {
+                container.innerHTML = `Ninguém tem folga fixa cadastrada para <strong>${diasSemanaNome[parseInt(diaNum)]}</strong>.`;
+            }
+        }
+
+        function autocompletarFolgasFixas() {
+            const dataEscala = document.getElementById('data_escala').value;
+            if(!dataEscala || modoEdicao) return; 
+
+            const partes = dataEscala.split('-');
+            const dt = new Date(partes[0], partes[1] - 1, partes[2]);
+            const diaSemana = dt.getDay().toString();
+
+            const btns = document.querySelectorAll('.btn-dia-filtro');
+            const idx = diaSemana === '0' ? 6 : parseInt(diaSemana) - 1;
+            if(btns[idx]) btns[idx].click();
+
+            const folgantesFixos = funcionarios.filter(f => f.folgaFixa === diaSemana && !isDeFerias(f, dataEscala));
+            const hiddenFolgas = document.getElementById('folgas');
+            if(hiddenFolgas) {
+                hiddenFolgas.value = folgantesFixos.map(f => f.nome).join(',');
+                atualizarTagsVisuais('folgas');
+            }
+        }
+
+        // ================= TAGS & SELETORES =================
+        document.getElementById('data_escala').addEventListener('change', () => { 
+            limparSeletoresDeQuemEntrouEmFerias();
+            autocompletarFolgasFixas();
+            atualizarOpcoesDropdown(); 
+            modoEdicao = false; 
         });
+
+        function limparSeletoresDeQuemEntrouEmFerias() {
+            const dataEscala = document.getElementById('data_escala').value;
+            if (!dataEscala) return;
+
+            camposTags.forEach(campoId => {
+                const hidden = document.getElementById(campoId);
+                if (hidden && hidden.value) {
+                    let lista = hidden.value.split(',');
+                    lista = lista.filter(nome => {
+                        const f = funcionarios.find(x => x.nome === nome);
+                        return !(f && isDeFerias(f, dataEscala));
+                    });
+                    hidden.value = lista.join(',');
+                    atualizarTagsVisuais(campoId);
+                }
+            });
+        }
+
+        function obterEscaladosGlobais() {
+            let escalados = [];
+            camposTags.forEach(c => { const val = document.getElementById(c).value; if(val) escalados = escalados.concat(val.split(',')); });
+            document.querySelectorAll('.fiscal-nome').forEach(sel => { if(sel.value) escalados.push(sel.value); });
+            return escalados;
+        }
+
+        function atualizarOpcoesDropdown() {
+            const dataEscala = document.getElementById('data_escala').value || getHojeISO();
+            const escalados = obterEscaladosGlobais();
+            const termoFiltro = (document.getElementById('filtro_form_colab') ? document.getElementById('filtro_form_colab').value : '').toLowerCase().trim();
+
+            let funcDisponiveis = funcionarios.filter(f => !isDeFerias(f, dataEscala));
+            if (termoFiltro) {
+                funcDisponiveis = funcDisponiveis.filter(f => f.nome.toLowerCase().includes(termoFiltro));
+            }
+
+            document.querySelectorAll('.func-select').forEach(sel => {
+                const valorAtual = sel.value;
+                sel.innerHTML = '<option value="">+ Selecionar colaborador...</option>' + 
+                    funcDisponiveis.sort((a,b)=>a.nome.localeCompare(b.nome)).map(f => {
+                        const disabled = escalados.includes(f.nome) ? 'disabled style="color:#cbd5e1;"' : '';
+                        return `<option value="${f.nome}" ${disabled}>${f.nome}</option>`;
+                    }).join('');
+                sel.value = valorAtual;
+            });
+            verificarFaltosos(escalados);
+        }
+
+        function addTag(campoId, selectElement) {
+            const nome = selectElement.value; if (!nome) return;
+            const hidden = document.getElementById(campoId);
+            let lista = hidden.value ? hidden.value.split(',') : [];
+            if (!lista.includes(nome)) { lista.push(nome); hidden.value = lista.join(','); atualizarTagsVisuais(campoId); }
+            selectElement.value = ''; atualizarOpcoesDropdown();
+        }
+
+        function removeTag(campoId, nome) {
+            const hidden = document.getElementById(campoId);
+            hidden.value = hidden.value.split(',').filter(n => n !== nome).join(',');
+            atualizarTagsVisuais(campoId); atualizarOpcoesDropdown();
+        }
+
+        function atualizarTagsVisuais(campoId) {
+            const hidden = document.getElementById(campoId);
+            const container = document.getElementById(`tags_${campoId}`);
+            if(!container) return;
+            const lista = hidden.value ? hidden.value.split(',').filter(x => x.trim()) : [];
+            container.innerHTML = lista.map(nome => {
+                const f = funcionarios.find(x => x.nome === nome);
+                const cor = f && f.cor !== '#000000' ? f.cor : '#333';
+                return `<div class="tag" style="color: ${cor}; border-color: ${cor};"><span onclick="removeTag('${campoId}', '${nome}')" class="remover">✖</span> ${nome}</div>`;
+            }).join('');
+        }
+
+        // ================= FISCAIS =================
+        let contFisc = 0;
+        function addFiscalUI(nome='', ent='', int='', sai='') {
+            const id = `fisc_${contFisc++}`;
+            const dataEscala = document.getElementById('data_escala').value || getHojeISO();
+            const funcDisponiveis = funcionarios.filter(f => !isDeFerias(f, dataEscala));
+            
+            const opt = '<option value="">Selecione...</option>' + funcDisponiveis.map(f => `<option value="${f.nome}" ${f.nome===nome?'selected':''}>${f.nome}</option>`).join('');
+            document.getElementById('containerFiscais').insertAdjacentHTML('beforeend', `
+                <div id="${id}" style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap:6px; align-items:center;">
+                    <select class="func-select fiscal-nome" onchange="atualizarOpcoesDropdown()">${opt}</select>
+                    <input type="text" class="fiscal-ent" placeholder="Ent" value="${ent}">
+                    <input type="text" class="fiscal-int" placeholder="Int" value="${int}">
+                    <input type="text" class="fiscal-sai" placeholder="Sai" value="${sai}">
+                    <button type="button" class="btn-danger" onclick="document.getElementById('${id}').remove(); atualizarOpcoesDropdown();">X</button>
+                </div>
+            `);
+            atualizarOpcoesDropdown();
+        }
+
+        function salvarCamposEscondidos() {
+            let fisc = [];
+            document.querySelectorAll('#containerFiscais > div').forEach(div => {
+                const n = div.querySelector('.fiscal-nome').value; const e = div.querySelector('.fiscal-ent').value.trim();
+                const i = div.querySelector('.fiscal-int').value.trim(); const s = div.querySelector('.fiscal-sai').value.trim();
+                if(n) fisc.push(`${n}|${e}|${i}|${s}`);
+            });
+            document.getElementById('fiscais').value = fisc.join('||');
+        }
+
+        function verificarFaltosos(escalados = []) {
+            const dataEscala = document.getElementById('data_escala').value || getHojeISO();
+            const faltam = funcionarios.filter(f => f.alerta && !isDeFerias(f, dataEscala) && !escalados.includes(f.nome));
+            
+            const divAlerta = document.getElementById('alertaFaltando');
+            if(faltam.length > 0 && escalados.length > 0) {
+                divAlerta.style.display = 'block';
+                divAlerta.innerHTML = `<strong>⚠️ Faltando na Escala:</strong> ${faltam.map(f => f.nome).join(', ')}`;
+            } else { divAlerta.style.display = 'none'; }
+        }
+
+        // ================= SALVAMENTO =================
+        document.getElementById('escalaForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const dataEscala = document.getElementById('data_escala').value || getHojeISO();
+            const btn = document.getElementById('btnSubmit'); 
+
+            const escalados = obterEscaladosGlobais();
+            const faltam = funcionarios.filter(f => f.alerta && !isDeFerias(f, dataEscala) && !escalados.includes(f.nome));
+            if(faltam.length > 0) {
+                if(!confirm(`ATENÇÃO!\n\nFaltam ${faltam.length} pessoas para alocar (${faltam.map(f=>f.nome).join(', ')}).\n\nTem certeza que deseja SALVAR MESMO ASSIM?`)) return;
+            }
+
+            if(!modoEdicao) {
+                btn.innerText = 'Verificando...';
+                try {
+                    const checkRes = await fetch(`${N8N_BUSCA_URL}?data=${dataEscala}`);
+                    const checkData = await checkRes.json();
+                    if(checkData && checkData.data_escala) {
+                        if(!confirm(`⚠️ CUIDADO!\n\nJá existe uma escala salva para a data ${formatarDataBR(dataEscala)}.\n\nDeseja SOBRESCREVER os dados da escala anterior?`)) { 
+                            btn.innerText = '💾 Salvar Escala'; return; 
+                        }
+                    }
+                } catch (err) { }
+            }
+
+            salvarCamposEscondidos();
+            btn.disabled = true; btn.innerText = 'Salvando...';
+
+            try {
+                const res = await fetch(N8N_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(e.target))) });
+                if(res.ok) { 
+                    alert('Escala Salva com Sucesso!'); 
+                    camposTags.forEach(c => { document.getElementById(c).value=''; atualizarTagsVisuais(c); }); 
+                    document.getElementById('containerFiscais').innerHTML=''; document.getElementById('observacoes').value='';
+                    autocompletarFolgasFixas();
+                    atualizarOpcoesDropdown(); modoEdicao = false; 
+                } 
+                else alert('Erro no servidor');
+            } catch (err) { alert('Erro de conexão com n8n.'); } 
+            finally { btn.disabled = false; btn.innerText = '💾 Salvar Escala'; }
+        });
+
+        // ================= RENDERIZAR PDF (VISUAL EXCEL) =================
+        function getColor(nome) { const f = funcionarios.find(x => x.nome === nome); return (f && f.cor !== '#000000') ? f.cor : 'black'; }
+
+        function gerarLinhasTabela(nomesStr, entrada, intPadrao, saida) {
+            if (!nomesStr) return '';
+            const nomes = nomesStr.split(',').filter(x => x.trim());
+            if(nomes.length === 0) return '';
+
+            let h = `<tr><td colspan="4" class="exhdr" style="background-color: var(--cor-primaria); color: black;">HORÁRIO ${entrada}H</td></tr>`;
+            nomes.forEach((nome, i) => {
+                h += `<tr><td style="font-weight:bold; text-align:center; color: ${getColor(nome)};">${nome.toUpperCase()}</td>`;
+                if(i === 0) {
+                    h += `<td rowspan="${nomes.length}" style="text-align:center; vertical-align:middle;">${entrada}</td>`;
+                    h += `<td rowspan="${nomes.length}" style="text-align:center; vertical-align:middle;">${intPadrao}</td>`;
+                    h += `<td rowspan="${nomes.length}" style="text-align:center; vertical-align:middle;">${saida}</td>`;
+                }
+                h += `</tr>`;
+            });
+            return h;
+        }
+
+        function renderTabelaHTML(dados) {
+            if(!dados || !dados.data_escala) {
+                return '<p style="text-align:center; padding: 20px; color:#64748b; font-weight:bold;">Nenhuma escala cadastrada para esta data.</p>';
+            }
+
+            const cxManha = (dados.turno_06h ? dados.turno_06h.split(',').filter(x=>x.trim()).length : 0) + (dados.turno_08h ? dados.turno_08h.split(',').filter(x=>x.trim()).length : 0);
+            const cxNoite = (dados.turno_11h ? dados.turno_11h.split(',').filter(x=>x.trim()).length : 0) + (dados.turno_12h40 ? dados.turno_12h40.split(',').filter(x=>x.trim()).length : 0);
+            
+            const folLista = (dados.folgas||'').split(',').filter(x=>x.trim()).map(n => `<div style="color: ${getColor(n) === 'black' ? 'var(--cor-alerta)' : getColor(n)};">${n.toUpperCase()}</div>`).join('');
+
+            let qtdFiscManha = 0, qtdFiscNoite = 0;
+            let linhasFiscais = '';
+            
+            if(dados.fiscais) {
+                dados.fiscais.split('||').forEach(f => {
+                    const parts = f.split('|');
+                    if(parts.length >= 1 && parts[0].trim()) {
+                        const nome = parts[0]; const ent = parts[1]||'-'; const int = parts[2]||'-'; const sai = parts[3]||'-';
+                        if(ent.includes('06') || ent.includes('08')) qtdFiscManha++; else qtdFiscNoite++;
+                        linhasFiscais += `<tr><td style="font-weight:bold; text-align:center; color: ${getColor(nome)};">${nome.toUpperCase()}</td><td style="text-align:center;">${ent}</td><td style="text-align:center;">${int}</td><td style="text-align:center;">${sai}</td></tr>`;
+                    }
+                });
+            }
+
+            let html = `
+                <div class="print-hide" style="margin-bottom: 10px;"><button class="btn-action" style="background:#d97706;" onclick="prepararEdicao('${encodeURIComponent(JSON.stringify(dados))}')">✏️ Editar Escala</button></div>
+                
+                <div class="table-responsive-wrapper">
+                    <style>
+                        .extbl { width: 100%; min-width: 600px; border-collapse: collapse; font-family: Calibri, Arial, sans-serif; font-size: 14px; background: white; }
+                        .extbl th, .extbl td { border: 1px solid #000; padding: 5px; }
+                        .exhdr { background-color: var(--cor-primaria); color: black; font-weight: bold; text-align: center; font-size: 15px; -webkit-print-color-adjust: exact; }
+                        .exsub { background-color: var(--cor-secundaria); font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }
+                    </style>
+                    <table class="extbl">
+                        <tr><td colspan="4" class="exhdr">ESCALA DE TRABALHO - ${formatarDataBR(dados.data_escala)}</td><td class="exhdr">QUANTIDADE DE CAIXAS</td></tr>
+                        <tr><td class="exsub">COLABORADORES</td><td class="exsub">ENTRADA</td><td class="exsub">INTERVALO</td><td class="exsub">SAÍDA</td>
+                            <td style="text-align: center; font-weight: bold; font-size: 12px;">${cxManha} CX PELA MANHÃ<br>${cxNoite} CX PELA NOITE</td>
+                        </tr>
+                        <tr>
+                            <td colspan="4" style="padding:0; border:none; vertical-align:top;">
+                                <table style="width: 100%; border-collapse: collapse; border: none;">
+                                    ${gerarLinhasTabela(dados.turno_06h, '06:00', document.getElementById('cfg_int_06').value, '15:20')}
+                                    ${gerarLinhasTabela(dados.turno_08h, '08:00', document.getElementById('cfg_int_08').value, '17:20')}
+                                    ${gerarLinhasTabela(dados.turno_11h, '11:00', document.getElementById('cfg_int_11').value, '20:20')}
+                                    ${gerarLinhasTabela(dados.turno_12h40, '12:40', document.getElementById('cfg_int_12').value, '22:00')}
+                                </table>
+                            </td>
+                            <td style="width:30%; vertical-align:top;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <tr><td class="exhdr">QUANTIDADE DE FISCAIS</td></tr>
+                                    <tr><td style="text-align: center; font-weight: bold; padding: 10px;">0${qtdFiscManha} PELA MANHÃ<br>0${qtdFiscNoite} PELA NOITE</td></tr>
+                                    <tr><td class="exhdr" style="margin-top:10px;">FOLGAS:</td></tr>
+                                    <tr><td style="padding: 10px; font-weight: bold; text-align: center;">${folLista || '-'}</td></tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                    <table class="extbl" style="margin-top: -1px;">
+                        <tr><td colspan="4" class="exhdr" style="background-color: var(--cor-primaria); color:black;">FISCAIS DE LOJA</td></tr>
+                        ${linhasFiscais || '<tr><td colspan="4" style="text-align:center;">Nenhum fiscal</td></tr>'}
+                    </table>
+                </div>
+            `;
+            if(dados.observacoes) html += `<div style="margin-top:10px; border: 1px solid #000; padding:10px; font-weight:bold; background:#fff;">OBSERVAÇÕES / OBS: <span style="font-weight:normal;">${dados.observacoes}</span></div>`;
+            return html;
+        }
+
+        // ================= NAV E BUSCA TRATADA =================
+        function openTab(id) {
+            document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.target.classList.add('active');
+            if(id === 'vigente') carregarEscalaHoje();
+        }
+
+        function prepararEdicao(dadosCod) {
+            const d = JSON.parse(decodeURIComponent(dadosCod));
+            modoEdicao = true; 
+
+            camposTags.concat(['data_escala','observacoes']).forEach(k => {
+                if(document.getElementById(k)) {
+                    document.getElementById(k).value = d[k] ? (k==='data_escala' ? d[k].split('T')[0] : d[k]) : '';
+                    if(camposTags.includes(k)) atualizarTagsVisuais(k);
+                }
+            });
+            document.getElementById('containerFiscais').innerHTML = '';
+            if(d.fiscais) { d.fiscais.split('||').forEach(f => { const p = f.split('|'); addFiscalUI(p[0], p[1], p[2], p[3]); }); }
+            document.querySelector('.tab-btn').click();
+            atualizarOpcoesDropdown();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function carregarEscalaHoje() {
+            const c = document.getElementById('escalaHojeContainer'); 
+            c.innerHTML = 'Buscando escala do dia...';
+            const hoje = getHojeISO();
+            
+            try { 
+                const res = await fetch(`${N8N_BUSCA_URL}?data=${hoje}`);
+                const r = await res.json();
+                let dadoFinal = Array.isArray(r) ? r[0] : r;
+                
+                if (dadoFinal && dadoFinal.data_escala) {
+                    c.innerHTML = renderTabelaHTML(dadoFinal);
+                } else {
+                    c.innerHTML = '<p style="text-align:center; padding: 20px; color:#64748b; font-weight:bold;">Nenhuma escala encontrada para o dia de hoje.</p>';
+                }
+            } catch (err) { 
+                c.innerHTML = '<p style="text-align:center; padding: 20px; color:#64748b; font-weight:bold;">Nenhuma escala encontrada para o dia de hoje.</p>'; 
+            }
+        }
+
+        async function buscarHistorico() {
+            const dataBusca = document.getElementById('data_busca').value;
+            if(!dataBusca) return alert('Selecione uma data!');
+            
+            const c = document.getElementById('historicoContainer'); 
+            c.innerHTML = `Buscando escala de ${formatarDataBR(dataBusca)}...`;
+            
+            try { 
+                const res = await fetch(`${N8N_BUSCA_URL}?data=${dataBusca}`);
+                const r = await res.json();
+                let dadoFinal = Array.isArray(r) ? r[0] : r;
+
+                if (dadoFinal && dadoFinal.data_escala) {
+                    c.innerHTML = renderTabelaHTML(dadoFinal);
+                } else {
+                    c.innerHTML = `<p style="text-align:center; padding: 20px; color:#64748b; font-weight:bold;">Nenhuma escala encontrada para o dia ${formatarDataBR(dataBusca)}.</p>`;
+                }
+            } catch (err) { 
+                c.innerHTML = `<p style="text-align:center; padding: 20px; color:#64748b; font-weight:bold;">Nenhuma escala encontrada para o dia ${formatarDataBR(dataBusca)}.</p>`; 
+            }
+        }
+
+        // ================= INICIAR APP =================
+        carregarFuncionariosNuvem(); 
+        camposTags.forEach(c => atualizarTagsVisuais(c));
     </script>
 </body>
 </html>

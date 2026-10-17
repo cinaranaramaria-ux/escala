@@ -327,9 +327,15 @@ function alinharObservacoesNoFimDaFolha() {
     });
     observacoes.forEach(element => {
         const rect = element.getBoundingClientRect();
+        const inicioEscala = element.closest('section[data-escala-data]')?.querySelector('.sheet-heading')?.getBoundingClientRect().top ?? rect.top;
+        // O navegador não inclui nas medidas do DOM as quebras de página de blocos inteiros.
+        // Para escalas longas, um espaçador calculado pelo DOM pode criar uma folha só de observações.
+        if (rect.bottom - inicioEscala > alturaUtilA4 - 40) return;
         const topoDocumento = rect.top + window.scrollY;
         const posicaoNaFolha = ((topoDocumento % alturaUtilA4) + alturaUtilA4) % alturaUtilA4;
-        const espacoAteORodape = Math.max(0, ((alturaUtilA4 - posicaoNaFolha - rect.height) % alturaUtilA4 + alturaUtilA4) % alturaUtilA4 - 16);
+        // Não completar a página quando a observação já ultrapassa o espaço restante.
+        // O módulo anterior transformava esse caso em quase uma folha inteira de espaço.
+        const espacoAteORodape = Math.max(0, alturaUtilA4 - posicaoNaFolha - rect.height - 28);
         const espaco = element.previousElementSibling?.classList.contains('sheet-observation-spacer') ? element.previousElementSibling : null;
         if (espaco && espacoAteORodape > 1) espaco.style.height = `${espacoAteORodape}px`;
     });

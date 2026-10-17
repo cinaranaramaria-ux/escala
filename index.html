@@ -544,12 +544,14 @@
 
             <!-- GERENCIADOR DINÂMICO DE TURNOS -->
             <h2>⏱️ Configuração Dinâmica de Turnos da Escala</h2>
+            <p class="hint">Edite ou adicione os turnos aqui. Para manter as mudanças no banco, clique em “Salvar Configurações Globais” acima.</p>
             <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:15px; border-radius:8px; margin-bottom:10px;">
                 <div class="grid grid-4" style="align-items:end;">
                     <div><label>Nome do Turno</label><input type="text" id="input_novo_turno_nome" placeholder="Ex: Turno 06:00H"></div>
                     <div><label>Horário Entrada</label><input type="text" id="input_novo_turno_ent" placeholder="Ex: 06:00"></div>
                     <div><label>Intervalo Padrão</label><input type="text" id="input_novo_turno_int" placeholder="Ex: 11:00/13:00"></div>
                     <div><label>Horário Saída</label><input type="text" id="input_novo_turno_sai" placeholder="Ex: 15:20"></div>
+                    <div><label>Período do Turno</label><select id="input_novo_turno_periodo"><option value="">Selecione o período</option><option value="manha">Manhã</option><option value="tarde_noite">Tarde/Noite</option></select></div>
                 </div>
                 <button type="button" class="btn-action" style="margin-top:10px; width:100%; justify-content:center;" onclick="addTurnoConfigUI()">➕ Adicionar Este Turno</button>
             </div>
@@ -1017,10 +1019,10 @@
         };
 
         const turnosPadraoInicio = [
-            { id: 't_06', legacyKey: 'turno_06h', nome: 'Turno 06:00H', ent: '06:00', int: '11:00/13:00', sai: '15:20' },
-            { id: 't_08', legacyKey: 'turno_08h', nome: 'Turno 08:00H', ent: '08:00', int: '12:40/14:40', sai: '17:20' },
-            { id: 't_11', legacyKey: 'turno_11h', nome: 'Turno 11:00H', ent: '11:00', int: '14:00/16:00', sai: '20:20' },
-            { id: 't_12', legacyKey: 'turno_12h40', nome: 'Turno 12:40H', ent: '12:40', int: '15:00/17:00', sai: '22:00' }
+            { id: 't_06', legacyKey: 'turno_06h', nome: 'Turno 06:00H', ent: '06:00', int: '11:00/13:00', sai: '15:20', periodo: 'manha' },
+            { id: 't_08', legacyKey: 'turno_08h', nome: 'Turno 08:00H', ent: '08:00', int: '12:40/14:40', sai: '17:20', periodo: 'manha' },
+            { id: 't_11', legacyKey: 'turno_11h', nome: 'Turno 11:00H', ent: '11:00', int: '14:00/16:00', sai: '20:20', periodo: 'manha' },
+            { id: 't_12', legacyKey: 'turno_12h40', nome: 'Turno 12:40H', ent: '12:40', int: '15:00/17:00', sai: '22:00', periodo: 'tarde_noite' }
         ];
 
         const tabelasExtrasPadraoInicio = [
@@ -2433,7 +2435,7 @@
             const shifts = turnos.map(t => {
                 const names = values[t.id] ?? dados[`turno_${t.id}`] ?? dados[t.legacyKey || legacy[t.id]] ?? '';
                 const count = nomesUnicos(names).length;
-                if (Number.parseInt(t.ent,10) < 12) cxManha += count; else cxNoite += count;
+                if ((t.periodo || (Number.parseInt(t.ent,10) < 12 ? 'manha' : 'tarde_noite')) === 'manha') cxManha += count; else cxNoite += count;
                 return names ? `<section class="shift-block"><table class="extbl sheet-workers"><colgroup><col style="width:44%"><col style="width:14%"><col style="width:27%"><col style="width:15%"></colgroup><thead><tr><th colspan="4" class="exhdr">${escapeHTML(t.nome)}</th></tr><tr>${['COLABORADORES','ENTRADA','INTERVALO','SAÍDA'].map(c=>`<th class="exsub">${c}</th>`).join('')}</tr></thead><tbody>${rows(names,t)}</tbody></table></section>` : '';
             }).join('');
             let fiscManha=0,fiscNoite=0;
@@ -2467,16 +2469,18 @@
             const ent = document.getElementById('input_novo_turno_ent')?.value.trim();
             const int = document.getElementById('input_novo_turno_int')?.value.trim();
             const sai = document.getElementById('input_novo_turno_sai')?.value.trim();
+            const periodo = document.getElementById('input_novo_turno_periodo')?.value;
 
-            if (!nome || !ent) return alert('Preencha o Nome e a Entrada do Turno!');
+            if (!nome || !ent || !periodo) return alert('Preencha o nome, a entrada e o período do turno.');
 
             const id = 't_' + Date.now();
-            turnosConfig.push({ id, nome, ent, int, sai });
+            turnosConfig.push({ id, nome, ent, int, sai, periodo });
             
             document.getElementById('input_novo_turno_nome').value = '';
             document.getElementById('input_novo_turno_ent').value = '';
             document.getElementById('input_novo_turno_int').value = '';
             document.getElementById('input_novo_turno_sai').value = '';
+            document.getElementById('input_novo_turno_periodo').value = '';
 
             renderTurnosConfigLista();
             reconstruirFormularioPreservando();
@@ -2488,16 +2492,41 @@
             reconstruirFormularioPreservando();
         }
 
+        let editandoTurnoId = null;
+        function iniciarEdicaoTurnoConfigUI(id) { editandoTurnoId = id; renderTurnosConfigLista(); }
+        function cancelarEdicaoTurnoConfigUI() { editandoTurnoId = null; renderTurnosConfigLista(); }
+        function salvarEdicaoTurnoConfigUI(id) {
+            const item = turnosConfig.find(t => t.id === id);
+            if (!item) return;
+            const campo = nome => document.getElementById(`edit_turno_${nome}_${id}`)?.value.trim() || '';
+            const atualizado = { ...item, nome:campo('nome'), ent:campo('ent'), int:campo('int'), sai:campo('sai'), periodo:campo('periodo') };
+            if (!atualizado.nome || !atualizado.ent || !atualizado.periodo) return alert('Preencha o nome, a entrada e o período do turno.');
+            Object.assign(item, atualizado);
+            editandoTurnoId = null;
+            renderTurnosConfigLista();
+            reconstruirFormularioPreservando();
+        }
         function renderTurnosConfigLista() {
             const cont = document.getElementById('containerConfigTurnosLista');
             if (!cont) return;
-            cont.innerHTML = turnosConfig.map(t => `
+            cont.innerHTML = turnosConfig.map(t => editandoTurnoId === t.id ? `
+                <div class="turno-config-item">
+                    <div class="grid grid-4">
+                        <div><label>Nome</label><input id="edit_turno_nome_${t.id}" value="${escapeHTML(t.nome)}"></div>
+                        <div><label>Entrada</label><input id="edit_turno_ent_${t.id}" value="${escapeHTML(t.ent)}"></div>
+                        <div><label>Intervalo</label><input id="edit_turno_int_${t.id}" value="${escapeHTML(t.int)}"></div>
+                        <div><label>Saída</label><input id="edit_turno_sai_${t.id}" value="${escapeHTML(t.sai)}"></div>
+                        <div><label>Período</label><select id="edit_turno_periodo_${t.id}"><option value="manha" ${((t.periodo || (Number.parseInt(t.ent,10) < 12 ? 'manha' : 'tarde_noite')) === 'manha') ? 'selected' : ''}>Manhã</option><option value="tarde_noite" ${((t.periodo || (Number.parseInt(t.ent,10) < 12 ? 'manha' : 'tarde_noite')) === 'tarde_noite') ? 'selected' : ''}>Tarde/Noite</option></select></div>
+                    </div>
+                    <div class="turno-config-actions"><button type="button" class="btn-action" onclick="salvarEdicaoTurnoConfigUI('${t.id}')">Aplicar alteração</button><button type="button" onclick="cancelarEdicaoTurnoConfigUI()">Cancelar</button></div>
+                </div>
+            ` : `
                 <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px; border-radius:6px; border:1px solid #cbd5e1;">
                     <div>
                         <strong>${escapeHTML(t.nome)}</strong> 
-                        <span style="font-size:12px; color:#64748b;">(Entrada: ${escapeHTML(t.ent)} | Int: ${escapeHTML(t.int)} | Saída: ${escapeHTML(t.sai)})</span>
+                        <span style="font-size:12px; color:#64748b;">(${(t.periodo || (Number.parseInt(t.ent,10) < 12 ? 'manha' : 'tarde_noite')) === 'manha' ? 'Manhã' : 'Tarde/Noite'} | Entrada: ${escapeHTML(t.ent)} | Int: ${escapeHTML(t.int)} | Saída: ${escapeHTML(t.sai)})</span>
                     </div>
-                    <button type="button" class="btn-danger" style="padding:4px 8px;" onclick="removeTurnoConfigUI('${t.id}')">Excluir</button>
+                    <div class="turno-config-actions"><button type="button" class="btn-action" onclick="iniciarEdicaoTurnoConfigUI('${t.id}')">Editar</button><button type="button" class="btn-danger" onclick="removeTurnoConfigUI('${t.id}')">Excluir</button></div>
                 </div>
             `).join('');
         }

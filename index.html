@@ -139,6 +139,7 @@
 <link rel="stylesheet" href="escala.css">
 </head>
 <body>
+    <h1 class="sr-only">Gerenciador de Escalas</h1>
     <div class="print-block-message">IMPRESSÃO BLOQUEADA — A escala não foi salva e confirmada. Volte ao sistema, salve ou atualize a consulta antes de imprimir.</div>
     <div id="acessoEquipe" class="card print-hide" hidden>
         <h2>Acesso da equipe</h2>
@@ -156,16 +157,26 @@
     </div>
 
 <!-- <BLOCO_HTML_ESTRUTURA> -->
-    <!-- NAVEGAÇÃO SUPERIOR -->
-    <div class="tabs print-hide">
-        <button class="tab-btn active" data-tab="cadastrar" onclick="openTab('cadastrar')">📝 Lançar Escala</button>
+    <!-- Navegação adaptada: abas no desktop e seletor no celular. -->
+    <label class="mobile-nav-label print-hide" for="mobileNavSelect">Ir para tela</label>
+    <select id="mobileNavSelect" class="mobile-nav-select print-hide" aria-label="Ir para tela" onchange="openTab(this.value)">
+        <option value="cadastrar">📝 Lançar Escala</option>
+        <option value="previsao">📆 Calendário e Previsão</option>
+        <option value="ausencias">📋 Relatório de Ausências</option>
+        <option value="vigente">📅 Escala de Hoje</option>
+        <option value="historico">🔍 Histórico</option>
+        <option value="funcionarios">👥 Base/Regras</option>
+        <option value="configuracoes">⚙️ Regras de Negócio</option>
+    </select>
+    <nav class="tabs print-hide" aria-label="Seções do sistema">
+        <button class="tab-btn active" data-tab="cadastrar" aria-current="page" onclick="openTab('cadastrar')">📝 Lançar Escala</button>
         <button class="tab-btn" data-tab="previsao" onclick="openTab('previsao')">📆 Calendário e Previsão</button>
         <button class="tab-btn" data-tab="ausencias" onclick="openTab('ausencias')">📋 Relatório de Ausências</button>
         <button class="tab-btn" data-tab="vigente" onclick="openTab('vigente')">📅 Escala de Hoje</button>
         <button class="tab-btn" data-tab="historico" onclick="openTab('historico')">🔍 Histórico</button>
         <button class="tab-btn" data-tab="funcionarios" onclick="openTab('funcionarios')">👥 Base/Regras</button>
-        <button class="tab-btn" data-tab="configuracoes" onclick="openTab('configuracoes')" style="background-color: #475569; color: white;">⚙️ Regras de Negócio</button>
-    </div>
+        <button class="tab-btn" data-tab="configuracoes" onclick="openTab('configuracoes')">⚙️ Regras de Negócio</button>
+    </nav>
 
     <!-- ABA 1: CALENDÁRIO PREVISÃO GERAL -->
     <div id="previsao" class="tab-content print-hide">
@@ -225,43 +236,49 @@
                         <input type="date" id="data_escala" name="data_escala" required onchange="aoMudarDataEscala()">
                     </div>
 
-                    <!-- CONTAINER DE TURNOS GERADOS DINAMICAMENTE -->
-                    <div id="containerFormTurnosDinamicos" class="full grid"></div>
+                    <!-- Turnos ficam abertos para orientar o preenchimento principal. -->
+                    <details class="form-section full" open>
+                        <summary>👥 Turnos da equipe <span class="form-section-count" id="sectionCountTurnos">0 pessoas</span></summary>
+                        <div id="containerFormTurnosDinamicos" class="full grid"></div>
+                    </details>
 
-                    <!-- CONTAINER DE FISCAIS -->
-                    <div class="form-group full" style="background: #f1f5f9; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1;">
-                        <label style="color: #0f766e;">🛡️ Fiscais de Loja (Horários Individuais)</label>
-                        <div id="containerFiscais" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;"></div>
-                        <button type="button" onclick="addFiscalUI()" class="btn-action" style="background: #0f766e;">+ Adicionar Fiscal</button>
-                        <input type="hidden" id="fiscais" name="fiscais">
-                    </div>
-
-                    <!-- GERENCIADOR DE EXCEÇÕES DE HORÁRIO EM GRUPO -->
-                    <div class="form-group full" style="background: #fff7ed; padding: 15px; border-radius: 8px; border: 1px solid #fdba74;">
-                        <label style="color: #c2410c;">⚡ Regras de Exceção de Horário (Agrupado)</label>
-                        <p style="font-size:0.8rem; color:#ea580c; margin-top:-5px;">1. Adicione os colaboradores nos turnos normais acima.<br>2. Crie uma regra abaixo e selecione os colaboradores que terão a hora sobrescrita.</p>
-                        <div id="containerExcecoesHorario" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;"></div>
-                        <button type="button" onclick="addExcecaoHorarioUI()" class="btn-action" style="background: #ea580c;">+ Adicionar Regra de Exceção</button>
-                        <input type="hidden" id="json_excecoes_horario" name="json_excecoes_horario">
-                    </div>
-
-                    <!-- FOLGAS DO DIA COM AUTO COMPLETAR -->
-                    <div class="form-group full" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px;">
-                        <label style="color: #166534;">💤 Folgas do Dia</label>
-                        
-                        <div style="margin-bottom: 12px; padding: 10px; background: #dcfce7; border: 1px solid #86efac; border-radius: 6px;">
-                            <strong style="color: #166534; font-size: 0.9rem;">📋 Previstos na Regra de Negócio:</strong>
-                            <div id="listaFolgantesPrevistosUI" style="margin-top: 5px; font-size: 0.85rem; color: #15803d; max-height: 100px; overflow-y: auto;">Selecione uma data para calcular...</div>
-                            <button type="button" class="btn-action" style="background: #16a34a; margin-top: 8px; font-size: 0.8rem;" onclick="autocompletarTodasFolgas()">⚡ Auto-preencher Previstos Abaixo</button>
+                    <details class="form-section full">
+                        <summary>🛡️ Fiscais de loja <span class="hint">Horários individuais</span><span class="form-section-count" id="sectionCountFiscais">0 pessoas</span></summary>
+                        <div class="form-section-content form-section-fiscais">
+                            <div id="containerFiscais" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;"></div>
+                            <button type="button" onclick="addFiscalUI()" class="btn-action">+ Adicionar Fiscal</button>
+                            <input type="hidden" id="fiscais" name="fiscais">
                         </div>
+                    </details>
 
-                        <div class="tag-container" id="tags_folgas" style="background: #fff;"></div>
-                        <button type="button" class="btn-action" style="background: #16a34a; margin-top: 8px;" onclick="openMultiSelectModal('folgas', 'Folgas do Dia', 'normal')">➕ Adicionar/Editar Manualmente</button>
-                        <input type="hidden" id="folgas" name="folgas">
-                    </div>
+                    <details class="form-section full">
+                        <summary>⚡ Exceções de horário <span class="hint">Horários diferentes do turno</span><span class="form-section-count" id="sectionCountExcecoes">0 regras</span></summary>
+                        <div class="form-section-content form-section-excecoes">
+                            <p>Adicione a pessoa ao turno normal e, em seguida, informe aqui o horário excepcional.</p>
+                            <div id="containerExcecoesHorario" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px;"></div>
+                            <button type="button" onclick="addExcecaoHorarioUI()" class="btn-action">+ Adicionar Regra de Exceção</button>
+                            <input type="hidden" id="json_excecoes_horario" name="json_excecoes_horario">
+                        </div>
+                    </details>
 
-                    <!-- CONTAINER PARA PREENCHIMENTO DAS TABELAS EXTRAS -->
-                    <div id="containerFormTabelasExtras" class="full grid"></div>
+                    <details class="form-section full">
+                        <summary>💤 Folgas do dia <span class="hint">Previstas e manuais</span><span class="form-section-count" id="sectionCountFolgas">0 pessoas</span></summary>
+                        <div class="form-section-content form-section-folgas">
+                            <div class="folgas-previstas">
+                                <strong>📋 Previstas na regra de negócio</strong>
+                                <div id="listaFolgantesPrevistosUI">Selecione uma data para calcular...</div>
+                                <button type="button" class="btn-action" onclick="autocompletarTodasFolgas()">⚡ Auto-preencher previstas</button>
+                            </div>
+                            <div class="tag-container" id="tags_folgas"></div>
+                            <button type="button" class="btn-action" onclick="openMultiSelectModal('folgas', 'Folgas do Dia', 'normal')">➕ Adicionar/Editar Manualmente</button>
+                            <input type="hidden" id="folgas" name="folgas">
+                        </div>
+                    </details>
+
+                    <details class="form-section full" id="formSectionTabelasExtras">
+                        <summary>📋 Tabelas complementares <span class="form-section-count" id="sectionCountTabelas">0 linhas</span></summary>
+                        <div id="containerFormTabelasExtras" class="full grid"></div>
+                    </details>
                     <input type="hidden" id="json_tabelas_extras" name="json_tabelas_extras">
 
                     <div class="form-group full">
@@ -416,7 +433,7 @@
                 <div class="grid" style="margin-top: 15px;">
                     <div>
                         <label>Folgas Extras / Feriado / Banco (Com Descrição)</label>
-                        <div style="display:grid; grid-template-columns: 1fr 1.5fr auto; gap:5px;">
+                        <div class="entry-grid entry-grid-extra">
                             <input type="date" id="input_add_extra_data">
                             <input type="text" id="input_add_extra_desc" placeholder="Motivo (Ex: Feriado)">
                             <button type="button" class="btn-action" onclick="addDataExtraUI()">Add</button>
@@ -437,7 +454,7 @@
                 <div class="grid">
                     <div>
                         <label>Lançar Ausência:</label>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr 1.5fr auto; gap:5px;">
+                        <div class="entry-grid entry-grid-absence">
                             <input type="date" id="input_add_aus_ini" title="Início">
                             <input type="date" id="input_add_aus_fim" title="Fim">
                             <input type="text" id="input_add_aus_motivo" placeholder="Motivo (Ex: Atestado Médico)">
@@ -541,7 +558,7 @@
             <br><hr style="border:none; border-top:1px solid #e2e8f0;"><br>
 
             <!-- GERENCIADOR DE TABELAS EXTRAS E PADRÕES -->
-            <h2>📄 Configuração de Tabelas Extras em Segunda Folha</h2>
+            <h2>📄 Configuração de Tabelas Complementares</h2>
             <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:15px; border-radius:8px; margin-bottom:10px;">
                 <div class="grid grid-3" style="align-items:end;">
                     <div><label>Título da Tabela Extra</label><input type="text" id="input_nova_tbl_titulo" placeholder="Ex: JOVEM APRENDIZ"></div>
@@ -789,7 +806,6 @@
 
             if (typeof renderTurnosConfigLista === 'function') renderTurnosConfigLista();
             if (typeof renderTabelasExtrasConfigLista === 'function') renderTabelasExtrasConfigLista();
-            if (estadoEscala.inicializando && typeof gerarCamposFormularioEscala === 'function') gerarCamposFormularioEscala();
         }
 
         /**
@@ -958,15 +974,11 @@
                 });
 
                 estadoEscala.funcionariosCarregados = true;
-                if (typeof renderizarListaFunc === 'function') renderizarListaFunc(); 
-                if (typeof atualizarListaFolgantesPrevistos === 'function') atualizarListaFolgantesPrevistos();
-                if (typeof renderizarCalendario === 'function') renderizarCalendario();
-                if (typeof renderizarRelatorioAusencias === 'function') renderizarRelatorioAusencias();
-                
-                if (estadoEscala.inicializando) {
-                    if (typeof gerarCamposFormularioEscala === 'function') gerarCamposFormularioEscala();
-                    if (typeof carregarRascunhoFormulario === 'function') carregarRascunhoFormulario();
-                } else {
+                if (!estadoEscala.inicializando) {
+                    if (typeof renderizarListaFunc === 'function') renderizarListaFunc();
+                    if (typeof atualizarListaFolgantesPrevistos === 'function') atualizarListaFolgantesPrevistos();
+                    if (typeof renderizarCalendario === 'function') renderizarCalendario();
+                    if (typeof renderizarRelatorioAusencias === 'function') renderizarRelatorioAusencias();
                     if (typeof atualizarOpcoesDropdown === 'function') atualizarOpcoesDropdown();
                 }
             } catch (e) {
@@ -1016,12 +1028,33 @@
             { id: 'tbl_app', titulo: 'ESCALA APP', colunas: ['NOME', 'HR', 'INT.', 'SAÍDA'], contarLimite: 'sim', defaultRows: [] }
         ];
 
+        function atualizarResumoFormulario() {
+            const contarNomes = value => nomesUnicos(value).length;
+            const turnos = turnosConfig.reduce((total, turno) => total + contarNomes(document.getElementById(`turno_${turno.id}`)?.value), 0);
+            const fiscais = [...document.querySelectorAll('#containerFiscais .fiscal-nome')].filter(select => valorSelect(select)).length;
+            const excecoes = [...document.querySelectorAll('.exc-nomes-hidden')].reduce((total, input) => total + contarNomes(input.value), 0);
+            const folgas = contarNomes(document.getElementById('folgas')?.value);
+            const tabelas = [...document.querySelectorAll('.linha-tbl-extra')].filter(row => [...row.querySelectorAll('.col-val')].some(input => (input.value || '').trim())).length;
+            const valores = {
+                sectionCountTurnos: `${turnos} ${turnos === 1 ? 'pessoa' : 'pessoas'}`,
+                sectionCountFiscais: `${fiscais} ${fiscais === 1 ? 'pessoa' : 'pessoas'}`,
+                sectionCountExcecoes: `${excecoes} ${excecoes === 1 ? 'pessoa' : 'pessoas'}`,
+                sectionCountFolgas: `${folgas} ${folgas === 1 ? 'pessoa' : 'pessoas'}`,
+                sectionCountTabelas: `${tabelas} ${tabelas === 1 ? 'linha' : 'linhas'}`
+            };
+            for (const [id, text] of Object.entries(valores)) {
+                const element = document.getElementById(id);
+                if (element) element.textContent = text;
+            }
+        }
+
         /**
          * Varre o formulário atual e grava o estado completo no localStorage.
          */
         function salvarRascunhoFormulario() {
             const dtEscala = document.getElementById('data_escala')?.value;
             if (!dtEscala) return;
+            atualizarResumoFormulario();
 
             let rascunhoObj = {
                 modoEdicao: modoEdicao,
@@ -1177,7 +1210,8 @@
             }
 
             if (!rascunhoStr) {
-                if (!modoEdicao && typeof gerarCamposFormularioEscala === 'function') {
+                const camposTurnoExistem = turnosConfig.some(turno => document.getElementById(`turno_${turno.id}`));
+                if (!modoEdicao && !camposTurnoExistem && typeof gerarCamposFormularioEscala === 'function') {
                     gerarCamposFormularioEscala();
                 }
                 return;
@@ -1376,6 +1410,7 @@
                 if(container){container.replaceChildren();(t.defaultRows||[]).forEach(row=>addLinhaTabelaExtraUI(t.id,row));}
             });
             atualizarOpcoesDropdown();
+            atualizarResumoFormulario();
         }
         async function limparPadraoFormulario() {
             if (!confirm('Apagar o padrão de preenchimento salvo no banco para todos os dispositivos? A escala desta tela não será apagada.')) return;
@@ -1748,7 +1783,7 @@
             if (contTbls) {
                 contTbls.innerHTML = tabelasExtrasConfig.map(t => `
                     <div class="form-group full" style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #cbd5e1;">
-                        <label style="color:#1e293b;">📋 ${escapeHTML(t.titulo)} (Linhas Individuais em 2ª Folha)</label>
+                        <label style="color:#1e293b;">📋 ${escapeHTML(t.titulo)}</label>
                         <div id="containerTblExtra_${t.id}" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div>
                         <button type="button" onclick="addLinhaTabelaExtraUI('${t.id}')" class="btn-action" style="background:#475569;">+ Adicionar Linha em ${escapeHTML(t.titulo)}</button>
                     </div>
@@ -1779,6 +1814,7 @@
             }
 
             atualizarOpcoesDropdown();
+            atualizarResumoFormulario();
         }
 
         // ------------------ DROPDOWNS E VALIDAÇÃO DE OCUPAÇÃO ------------------
@@ -2554,12 +2590,19 @@
         // ------------------ NAVEGAÇÃO DE ABAS ------------------
         function openTab(id, consultar = true) {
             document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
-            
-            const btn = document.querySelector(`.tab-btn[data-tab="${id}"]`);
-            if (btn) btn.classList.add('active');
+
+            document.querySelectorAll('.tab-btn').forEach(button => {
+                if (button.dataset.tab === id) {
+                    button.classList.add('active');
+                    button.setAttribute('aria-current', 'page');
+                } else button.removeAttribute('aria-current');
+            });
             
             const target = document.getElementById(id);
             if (target) target.classList.add('active');
+            const mobileNav = document.getElementById('mobileNavSelect');
+            if (mobileNav) mobileNav.value = id;
+            if (window.matchMedia('(max-width: 640px)').matches) window.scrollTo(0, 0);
 
             gravarLocal('abaAtivaEscalas', id);
 
@@ -2838,11 +2881,16 @@
             const now = new Date();
             document.getElementById('mes_previsao').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
             if (!document.getElementById('data_escala').value) document.getElementById('data_escala').value = getHojeISO();
-            await carregarConfiguracoes();
-            await carregarFuncionariosNuvem();
-            if (!estadoEscala.funcionariosCarregados && !lerLocal(`escala_rascunho_${document.getElementById('data_escala').value}`)) carregarRascunhoFormulario();
+            await Promise.all([carregarConfiguracoes(), carregarFuncionariosNuvem()]);
+            gerarCamposFormularioEscala();
+            carregarRascunhoFormulario();
+            if (estadoEscala.funcionariosCarregados) renderizarListaFunc();
+            atualizarListaFolgantesPrevistos();
+            renderizarRelatorioAusencias();
+            renderizarCalendario();
             estadoEscala.dataFormulario = document.getElementById('data_escala').value;
             await recuperarRascunhoBanco(estadoEscala.dataFormulario,{force:true});
+            atualizarResumoFormulario();
             estadoEscala.inicializando = false;
             if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) atualizarStatusSalvamento('erro','Não foi possível carregar a base do servidor. Confira acesso e conexão; o rascunho foi mantido.');
             restaurarAbaSalva();

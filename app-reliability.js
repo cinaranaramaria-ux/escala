@@ -209,6 +209,8 @@ async function salvarEscalaConfiavel(event) {
     button.disabled = true; button.textContent = 'Verificando e salvando…';
     gravarRascunhoDebounced.cancel();
     document.querySelector('.tabs').inert = true;
+    const mobileNav = document.getElementById('mobileNavSelect');
+    if (mobileNav) mobileNav.disabled = true;
     let payload;
     try {
         if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) {
@@ -267,6 +269,7 @@ async function salvarEscalaConfiavel(event) {
     } finally {
         form.inert = false; estadoEscala.salvando = false;
         document.querySelector('.tabs').inert = false;
+        if (mobileNav) mobileNav.disabled = false;
         button.disabled = false; button.textContent = '💾 Salvar e confirmar escala';
     }
 }

@@ -9,6 +9,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .save-status[data-estado="erro"] { background: #fef2f2; border-color: #dc2626; }
 .save-status[data-estado="salvando"] { background: #eff6ff; border-color: #2563eb; }
 .status-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.form-pattern-actions { display:flex; flex-wrap:wrap; gap:8px; }
 .aviso-versao { background:#fef2f2; color:#991b1b; border:2px solid #dc2626; padding:10px; margin-bottom:8px; font-weight:bold; }
 .print-block-message { display:none; }
 .sheet { font-family:Calibri, Arial, sans-serif; color:#111; }
@@ -37,6 +38,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     .tabs { position:sticky; top:0; z-index:110; background:#f1f5f9; padding:8px 0; }
     .sticky-top-bar { position:static; padding-top:6px; margin-top:0; }
     .sticky-top-bar > button { width:100%; }
+    .form-pattern-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; }
+    .form-pattern-actions > button { width:100%; min-width:0; white-space:normal; text-align:center; }
     .sticky-bottom-btn { bottom:max(8px, env(safe-area-inset-bottom)); }
     button.btn-action, button.btn-danger, .btn-order { min-height:44px; }
     .tag { max-width:100%; }

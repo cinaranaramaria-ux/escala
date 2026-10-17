@@ -208,7 +208,12 @@
         <div class="card" style="padding-bottom: 1px;">
             <div class="sticky-top-bar">
                 <h2 style="margin:0;" id="tituloFormLancemento">Lançamento da Escala</h2>
-                <button type="button" class="btn-action" style="background:#64748b;" onclick="limparRascunhoEFormulario()">🔄 Limpar Tudo e Recomeçar</button>
+                <div class="form-pattern-actions">
+                    <button type="button" class="btn-action" style="background:#fb923c;" onclick="salvarPadraoFormulario()">⭐ Salvar Padrão</button>
+                    <button type="button" class="btn-action" style="background:#0f766e;" onclick="restaurarPadraoFormulario()">📥 Restaurar Padrão</button>
+                    <button type="button" class="btn-action" style="background:#ef4444;" onclick="limparPadraoFormulario()">🗑️ Limpar Padrão</button>
+                    <button type="button" class="btn-action" style="background:#64748b;" onclick="limparRascunhoEFormulario()">🔄 Recomeçar</button>
+                </div>
             </div>
 
             <div id="alertaFaltando" class="alerta-falta"></div>
@@ -469,7 +474,7 @@
             <div class="sticky-top-bar">
                 <h2 style="margin:0;">⚙️ Regras de Negócio e Dinâmicas</h2>
                 <button class="btn-main" onclick="salvarConfiguracoes()" style="background:#0f766e; width:auto; margin:0;">💾 Salvar Configurações Globais</button>
-                <button type="button" class="btn-action" onclick="recuperarConfiguracoesSalvas()" style="width:auto; margin:0;">↩️ Recuperar padrões salvos</button>
+                <button type="button" class="btn-action" onclick="recuperarConfiguracoesSalvas()" style="width:auto; margin:0;">↩️ Recarregar regras salvas</button>
             </div>
 
             <!-- BLOCO DESATIVADO TEMPORARIAMENTE (OPACO E SEM CLIQUES) -->
@@ -552,26 +557,6 @@
                 <button type="button" class="btn-action" style="margin-top:10px; width:100%; justify-content:center; background:#2563eb;" onclick="addTabelaExtraConfigUI()">➕ Criar Tabela Extra</button>
             </div>
             <div id="containerConfigTabelasExtrasLista" style="display:flex; flex-direction:column; gap:8px; margin-bottom:15px;"></div>
-
-            <!-- TEMPLATES/SUGESTÕES DE PREENCHIMENTO -->
-            <div style="background:#fff7ed; border:1px solid #fdba74; padding:15px; border-radius:8px; margin-bottom:10px;">
-                <h3 style="margin-top:0; font-size:1rem; color:#c2410c;">📝 Sugestões de Preenchimento Automático (Fiscais, Exceções e Tabelas)</h3>
-                <p style="font-size:0.8rem; color:#ea580c; margin-top:-5px;">Cadastre regras fixas aqui. Elas serão salvas no banco de dados e injetadas em qualquer dispositivo.</p>
-                
-                <div style="background:#fff; padding:15px; border-radius:8px; border:1px dashed #fdba74; margin-bottom: 10px;">
-                    <label style="color:#c2410c;">🛡️ Fiscais Padrão (Pré-preenchimento)</label>
-                    <div id="containerDefFiscais" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div>
-                    <button type="button" onclick="addLinhaDefaultFiscalUI()" class="btn-action" style="background:#fb923c; font-size:12px;">+ Adicionar Sugestão de Fiscal</button>
-                </div>
-
-                <div style="background:#fff; padding:15px; border-radius:8px; border:1px dashed #fdba74; margin-bottom: 10px;">
-                    <label style="color:#c2410c;">⚡ Exceções Padrão (Pré-preenchimento)</label>
-                    <div id="containerDefExcecoes" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div>
-                    <button type="button" onclick="addLinhaDefaultExcecaoUI()" class="btn-action" style="background:#fb923c; font-size:12px;">+ Adicionar Sugestão de Exceção</button>
-                </div>
-
-                <div id="containerDefaultsTabelasExtras" style="display:flex; flex-direction:column; gap:10px;"></div>
-            </div>
 
             <br><hr style="border:none; border-top:1px solid #e2e8f0;"><br>
 
@@ -810,43 +795,7 @@
         /**
          * Envia as configurações globais atualizadas para o n8n/Supabase.
          */
-        async function salvarConfiguracoes() {
-            tabelasExtrasConfig.forEach(t => {
-                let defRows = [];
-                document.querySelectorAll(`.linha-def-extra[data-tbl="${t.id}"]`).forEach(div => {
-                    let rowObj = {};
-                    div.querySelectorAll('.def-col-val').forEach(el => {
-                        const val = el.tagName === 'SELECT' ? (valorSelect(el)) : el.value;
-                        rowObj[el.getAttribute('data-col')] = val.trim();
-                    });
-                    if (Object.values(rowObj).some(x => x)) defRows.push(rowObj);
-                });
-                t.defaultRows = defRows;
-            });
-
-            fiscaisPadraoConfig = [];
-            document.querySelectorAll('.linha-def-fiscal').forEach(div => {
-                const sel = div.querySelector('.def-fisc-nome');
-                const nome = sel ? (valorSelect(sel)).trim() : '';
-                const ent = div.querySelector('.def-fisc-ent').value.trim();
-                const int = div.querySelector('.def-fisc-int').value.trim();
-                const sai = div.querySelector('.def-fisc-sai').value.trim();
-                if (nome || ent || int || sai) {
-                    fiscaisPadraoConfig.push({ nome, ent, int, sai });
-                }
-            });
-
-            excecoesPadraoConfig = [];
-            document.querySelectorAll('.linha-def-excecao').forEach(div => {
-                const hiddenInput = div.querySelector('.def-exc-nomes-hidden');
-                const nomes = hiddenInput ? hiddenInput.value.trim() : '';
-                const ent = div.querySelector('.def-exc-ent').value.trim();
-                const int = div.querySelector('.def-exc-int').value.trim();
-                const sai = div.querySelector('.def-exc-sai').value.trim();
-                if (nomes || ent || int || sai) {
-                    excecoesPadraoConfig.push({ nomes, ent, int, sai });
-                }
-            });
+        async function salvarConfiguracoes({notificar=true}={}) {
 
             alertasConfig = {
                 folgaFixa: document.getElementById('alerta_cfg_folga_fixa').checked,
@@ -892,10 +841,13 @@
                 const response = await requestJSON(N8N_GET_CONFIG);
                 const saved = Array.isArray(response) ? response[0] : response;
                 if (!saved || !['cfg_turnos','cfg_tabelas_extras','cfg_fiscais_padrao','cfg_excecoes_padrao','cfg_alertas'].every(key => mesmosDados(parseJSONField(saved[key],null),payload[key]))) throw new Error('A versão remota não corresponde às configurações enviadas.');
-                alert('Configurações salvas e confirmadas no servidor.');
-                salvarRascunhoFormulario();
+                if (notificar) alert('Configurações salvas e confirmadas no servidor.');
+                return true;
             } catch (e) {
-                alert(`Configurações NÃO SALVAS/CONFIRMADAS no servidor. ${e.message} A cópia local foi mantida; tente salvar novamente.`);
+                alert(notificar
+                    ? `Configurações NÃO SALVAS/CONFIRMADAS no servidor. ${e.message} A cópia local foi mantida; tente salvar novamente.`
+                    : `Padrão NÃO salvo/confirmado no banco. ${e.message} O formulário atual foi preservado; tente novamente.`);
+                return false;
             }
         }
 
@@ -1013,7 +965,6 @@
                 
                 if (estadoEscala.inicializando) {
                     if (typeof gerarCamposFormularioEscala === 'function') gerarCamposFormularioEscala();
-                    if (typeof renderDefaultsTabelasExtrasUI === 'function') renderDefaultsTabelasExtrasUI();
                     if (typeof carregarRascunhoFormulario === 'function') carregarRascunhoFormulario();
                 } else {
                     if (typeof atualizarOpcoesDropdown === 'function') atualizarOpcoesDropdown();
@@ -1349,6 +1300,93 @@
             requestJSON(N8N_DELETE_DRAFT,{method:'POST',body:JSON.stringify({data_escala:document.getElementById('data_escala').value})})
                 .then(()=>location.reload()).catch(e=>{alert(`O rascunho local foi descartado, mas o rascunho do banco não foi excluído. ${e.message}`);location.reload();});
         }
+
+        // O padrão pertence ao formulário de lançamento. As configurações globais
+        // apenas armazenam esses campos para preservar o formato já usado no banco.
+        function guardarCachePadrao() {
+            gravarLocal('cfg_turnos_dinamicos',JSON.stringify(turnosConfig));
+            gravarLocal('cfg_tabelas_extras_dinamicas',JSON.stringify(tabelasExtrasConfig));
+            gravarLocal('cfg_fiscais_padrao',JSON.stringify(fiscaisPadraoConfig));
+            gravarLocal('cfg_excecoes_padrao',JSON.stringify(excecoesPadraoConfig));
+        }
+        function copiarPadraoAtual() {
+            return {
+                turnos:turnosConfig.map(t=>({...t})),
+                tabelas:tabelasExtrasConfig.map(t=>({...t,defaultRows:Array.isArray(t.defaultRows)?t.defaultRows.map(r=>({...r})):[]})),
+                fiscais:fiscaisPadraoConfig.map(f=>({...f})),
+                excecoes:excecoesPadraoConfig.map(e=>({...e}))
+            };
+        }
+        function reporPadraoAnterior(anterior) {
+            turnosConfig=anterior.turnos; tabelasExtrasConfig=anterior.tabelas;
+            fiscaisPadraoConfig=anterior.fiscais; excecoesPadraoConfig=anterior.excecoes;
+            guardarCachePadrao();
+        }
+        async function salvarPadraoFormulario() {
+            if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) return alert('Carregue a base do servidor antes de salvar um padrão.');
+            try { validarDuplicacoes(); } catch(e) { return alert(e.message); }
+            const anterior=copiarPadraoAtual();
+            turnosConfig=turnosConfig.map(t=>({...t,defaultPessoas:document.getElementById(`turno_${t.id}`)?.value||''}));
+            fiscaisPadraoConfig=[...document.querySelectorAll('#containerFiscais > div')].map(div=>({
+                nome:valorSelect(div.querySelector('.fiscal-nome')).trim(),
+                ent:div.querySelector('.fiscal-ent')?.value.trim()||'',
+                int:div.querySelector('.fiscal-int')?.value.trim()||'',
+                sai:div.querySelector('.fiscal-sai')?.value.trim()||''
+            })).filter(f=>Object.values(f).some(Boolean));
+            excecoesPadraoConfig=[...document.querySelectorAll('#containerExcecoesHorario .excecao-box')].map(div=>({
+                nomes:div.querySelector('.exc-nomes-hidden')?.value||'',
+                ent:div.querySelector('.exc-ent')?.value.trim()||'',
+                int:div.querySelector('.exc-int')?.value.trim()||'',
+                sai:div.querySelector('.exc-sai')?.value.trim()||''
+            })).filter(e=>Object.values(e).some(Boolean));
+            tabelasExtrasConfig=tabelasExtrasConfig.map(t=>({...t,defaultRows:[...document.querySelectorAll(`.linha-tbl-extra[data-tbl="${t.id}"]`)].map(div=>{
+                const row={}; div.querySelectorAll('.col-val').forEach(el=>{row[el.dataset.col]=(el.tagName==='SELECT'?valorSelect(el):el.value).trim();}); return row;
+            }).filter(row=>Object.values(row).some(Boolean))}));
+            if (await salvarConfiguracoes({notificar:false})) alert('Padrão do formulário salvo e confirmado no banco. Novas escalas serão preenchidas com ele.');
+            else reporPadraoAnterior(anterior);
+        }
+        async function restaurarPadraoFormulario() {
+            if (!confirm('Preencher turnos, fiscais, exceções e tabelas desta escala com o padrão salvo no banco? As alocações atuais desses campos serão substituídas.')) return;
+            try {
+                const response=await requestJSON(N8N_GET_CONFIG);
+                const saved=Array.isArray(response)?response[0]:response;
+                const remoteTurnos=parseJSONField(saved?.cfg_turnos,null);
+                const remoteTables=parseJSONField(saved?.cfg_tabelas_extras,null);
+                const remoteFiscais=parseJSONField(saved?.cfg_fiscais_padrao,null);
+                const remoteExcecoes=parseJSONField(saved?.cfg_excecoes_padrao,null);
+                if (![remoteTurnos,remoteTables,remoteFiscais,remoteExcecoes].every(Array.isArray)) throw new Error('O padrão do banco está incompleto.');
+                validarLayout({turnos:remoteTurnos,tabelas:remoteTables});
+                const turnosRemotos=new Map(remoteTurnos.map(t=>[t.id,t]));
+                const tabelasRemotas=new Map(remoteTables.map(t=>[t.id,t]));
+                turnosConfig=turnosConfig.map(t=>({...t,defaultPessoas:turnosRemotos.get(t.id)?.defaultPessoas||''}));
+                tabelasExtrasConfig=tabelasExtrasConfig.map(t=>({...t,defaultRows:tabelasRemotas.get(t.id)?.defaultRows||[]}));
+                fiscaisPadraoConfig=remoteFiscais; excecoesPadraoConfig=remoteExcecoes;
+                aplicarPadraoNoFormulario();
+                salvarRascunhoFormularioDebounced();
+            } catch(e) { alert(`Não foi possível restaurar o padrão do banco. ${e.message}`); }
+        }
+        function aplicarPadraoNoFormulario() {
+            turnosConfig.forEach(t=>{const input=document.getElementById(`turno_${t.id}`);if(input){input.value=t.defaultPessoas||'';atualizarTagsVisuais(input.id);}});
+            document.getElementById('containerFiscais').replaceChildren();
+            fiscaisPadraoConfig.forEach(f=>addFiscalUI(f.nome,f.ent,f.int,f.sai));
+            document.getElementById('containerExcecoesHorario').replaceChildren();
+            excecoesPadraoConfig.forEach(e=>addExcecaoHorarioUI(e.nomes||e.nome||'',e.ent,e.int,e.sai));
+            tabelasExtrasConfig.forEach(t=>{
+                const container=document.getElementById(`containerTblExtra_${t.id}`);
+                if(container){container.replaceChildren();(t.defaultRows||[]).forEach(row=>addLinhaTabelaExtraUI(t.id,row));}
+            });
+            atualizarOpcoesDropdown();
+        }
+        async function limparPadraoFormulario() {
+            if (!confirm('Apagar o padrão de preenchimento salvo no banco para todos os dispositivos? A escala desta tela não será apagada.')) return;
+            if (!estadoEscala.configCarregada) return alert('Não foi possível carregar as configurações do servidor. Tente novamente mais tarde.');
+            const anterior=copiarPadraoAtual();
+            turnosConfig=turnosConfig.map(t=>({...t,defaultPessoas:''}));
+            tabelasExtrasConfig=tabelasExtrasConfig.map(t=>({...t,defaultRows:[]}));
+            fiscaisPadraoConfig=[]; excecoesPadraoConfig=[];
+            if (await salvarConfiguracoes({notificar:false})) alert('Padrão apagado e confirmado no banco. A escala atual continua na tela.');
+            else reporPadraoAnterior(anterior);
+        }
 /* </BLOCO_JS_ESTADO_RASCUNHO> */
 
 
@@ -1358,8 +1396,6 @@
         // =========================================================================
         let dadosCalendarioGlobal = {};
         let contExcecoes = 0;
-        let contLinhasDef = 0;
-        let contDefExcecoes = 0;
         let contLinhasExtras = 0;
         let contFisc = 0;
 
@@ -1726,6 +1762,13 @@
             if (contExc) contExc.innerHTML = '';
 
             if (!modoEdicao) {
+                turnosConfig.forEach(t => {
+                    const input=document.getElementById(`turno_${t.id}`);
+                    if (input && t.defaultPessoas) {
+                        input.value=t.defaultPessoas;
+                        atualizarTagsVisuais(input.id);
+                    }
+                });
                 tabelasExtrasConfig.forEach(t => {
                     if (t.defaultRows && t.defaultRows.length > 0) {
                         t.defaultRows.forEach(r => addLinhaTabelaExtraUI(t.id, r));
@@ -2484,7 +2527,6 @@
                     </div>
                 </div>`;
             }).join('');
-            renderDefaultsTabelasExtrasUI();
         }
 
         function iniciarEdicaoTabelaExtraConfigUI(id) { editandoTabelaExtraId = id; renderTabelasExtrasConfigLista(); }
@@ -2509,115 +2551,6 @@
             reconstruirFormularioPreservando();
         }
 
-        function renderDefaultsTabelasExtrasUI() {
-            const cont = document.getElementById('containerDefaultsTabelasExtras');
-            if (!cont) return;
-
-            if (tabelasExtrasConfig.length === 0) {
-                cont.innerHTML = '<span style="color:#64748b; font-size:0.85rem;">Nenhuma tabela extra criada.</span>';
-            } else {
-                cont.innerHTML = tabelasExtrasConfig.map(t => `
-                    <div style="background:#fff; padding:15px; border-radius:8px; border:1px dashed #fdba74;">
-                        <label style="color:#c2410c;">📋 Preenchimento de: ${escapeHTML(t.titulo)}</label>
-                        <div id="containerDefTblExtra_${t.id}" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div>
-                        <button type="button" onclick="addLinhaDefaultTabelaExtraUI('${t.id}')" class="btn-action" style="background:#fb923c; font-size:12px;">+ Adicionar Linha Padrão</button>
-                    </div>
-                `).join('');
-
-                tabelasExtrasConfig.forEach(t => {
-                    if (t.defaultRows && t.defaultRows.length > 0) {
-                        t.defaultRows.forEach(r => addLinhaDefaultTabelaExtraUI(t.id, r));
-                    }
-                });
-            }
-
-            const cDefFisc = document.getElementById('containerDefFiscais');
-            if (cDefFisc) {
-                cDefFisc.innerHTML = '';
-                fiscaisPadraoConfig.forEach(f => addLinhaDefaultFiscalUI(f));
-            }
-            
-            const cDefExc = document.getElementById('containerDefExcecoes');
-            if (cDefExc) {
-                cDefExc.innerHTML = '';
-                excecoesPadraoConfig.forEach(e => addLinhaDefaultExcecaoUI(e));
-            }
-
-            atualizarOpcoesDropdown();
-        }
-
-        function addLinhaDefaultTabelaExtraUI(tblId, valoresObj = {}) {
-            const tblConfig = tabelasExtrasConfig.find(t => t.id === tblId);
-            const cont = document.getElementById(`containerDefTblExtra_${tblId}`);
-            if (!tblConfig || !cont) return;
-
-            const linhaId = `line_def_${contLinhasDef++}`;
-            const numCols = tblConfig.colunas.length;
-            const gridColsCSS = `grid-template-columns: repeat(${numCols}, 1fr) auto;`;
-
-            let inputsHTML = '';
-            tblConfig.colunas.forEach((col, idx) => {
-                const val = valoresObj[col] || '';
-                if (idx === 0) {
-                    inputsHTML += `<select class="func-select-base def-col-val" data-col="${escapeHTML(col)}" data-init="${escapeHTML(val)}"></select>`;
-                } else {
-                    inputsHTML += `<input type="text" class="def-col-val" data-col="${escapeHTML(col)}" placeholder="${escapeHTML(col)}" value="${escapeHTML(val)}">`;
-                }
-            });
-
-            cont.insertAdjacentHTML('beforeend', `
-                <div id="${linhaId}" class="linha-def-extra" data-tbl="${tblId}" style="display:grid; ${gridColsCSS} gap:6px; align-items:center;">
-                    ${inputsHTML}
-                    <button type="button" class="btn-danger" onclick="document.getElementById('${linhaId}').remove();">X</button>
-                </div>
-            `);
-            atualizarOpcoesDropdown(); 
-        }
-
-        function addLinhaDefaultFiscalUI(valoresObj = {}) {
-            const cont = document.getElementById(`containerDefFiscais`);
-            if (!cont) return;
-            const linhaId = `line_def_fisc_${Date.now()}_${Math.random().toString().replace('.','')}`;
-            cont.insertAdjacentHTML('beforeend', `
-                <div id="${linhaId}" class="linha-def-fiscal" style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap:6px; align-items:center;">
-                    <select class="func-select-base def-fisc-nome" data-init="${escapeHTML(valoresObj.nome || '')}"></select>
-                    <input type="text" class="def-fisc-ent" placeholder="Ent" value="${escapeHTML(valoresObj.ent || '')}">
-                    <input type="text" class="def-fisc-int" placeholder="Int" value="${escapeHTML(valoresObj.int || '')}">
-                    <input type="text" class="def-fisc-sai" placeholder="Sai" value="${escapeHTML(valoresObj.sai || '')}">
-                    <button type="button" class="btn-danger" onclick="document.getElementById('${linhaId}').remove();">X</button>
-                </div>
-            `);
-            atualizarOpcoesDropdown(); 
-        }
-
-        function addLinhaDefaultExcecaoUI(valoresObj = {}) {
-            const cont = document.getElementById(`containerDefExcecoes`);
-            if (!cont) return;
-
-            const idBox = `line_def_exc_${contDefExcecoes++}`;
-            const hiddenId = `hidden_${idBox}`;
-            const nomes = valoresObj.nomes || valoresObj.nome || '';
-
-            cont.insertAdjacentHTML('beforeend', `
-                <div id="${idBox}" class="linha-def-excecao" style="background:#fff; border:1px solid #fdba74; padding:12px; border-radius:6px; margin-bottom:8px;">
-                    <div class="grid grid-3" style="margin-bottom:10px; gap:8px;">
-                        <div><label class="hint" style="margin:0;">Entrada</label><input type="text" class="def-exc-ent" placeholder="Ex: 08:00" value="${escapeHTML(valoresObj.ent || '')}" style="padding:8px;"></div>
-                        <div><label class="hint" style="margin:0;">Intervalo</label><input type="text" class="def-exc-int" placeholder="Ex: 12:00/14:00" value="${escapeHTML(valoresObj.int || '')}" style="padding:8px;"></div>
-                        <div><label class="hint" style="margin:0;">Saída</label><input type="text" class="def-exc-sai" placeholder="Ex: 17:20" value="${escapeHTML(valoresObj.sai || '')}" style="padding:8px;"></div>
-                    </div>
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <input type="hidden" class="def-exc-nomes-hidden" id="${hiddenId}" value="${escapeHTML(nomes)}">
-                        <div class="tag-container" id="tags_${hiddenId}" style="min-height:38px; background:#fff7ed; border-color:#fdba74;"></div>
-                        <div style="display:flex; gap:10px;">
-                            <button type="button" class="btn-action" style="flex:1;" onclick="openMultiSelectModal('${hiddenId}', 'Pessoas nesta Exceção Padrão', 'todas_pessoas')">➕ Selecionar Colaboradores</button>
-                            <button type="button" class="btn-danger" onclick="document.getElementById('${idBox}').remove();">Remover Exceção</button>
-                        </div>
-                    </div>
-                </div>
-            `);
-            if (nomes) atualizarTagsVisuais(hiddenId);
-        }
-
         // ------------------ NAVEGAÇÃO DE ABAS ------------------
         function openTab(id, consultar = true) {
             document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
@@ -2633,7 +2566,6 @@
             if (id === 'vigente' && consultar) carregarEscalaHoje();
             if (id === 'previsao') renderizarCalendario();
             if (id === 'ausencias') renderizarRelatorioAusencias();
-            if (id === 'configuracoes') renderDefaultsTabelasExtrasUI();
         }
 
         function restaurarAbaSalva() {

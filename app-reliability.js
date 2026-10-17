@@ -1,7 +1,7 @@
 /* Persistência, confirmação de versão e proteção de impressão. Sem dependências externas. */
 const estadoEscala = {
     pendente: false, salvando: false, inicializando: true, rascunhoSeguro: false,
-    versaoBase: null, dataBase: null, requisicaoPendente: null, erro: false,
+    versaoBase: null, dataBase: null, requisicaoPendente: null, conflito: null, erro: false,
     consultas: {}, dadosExibidos: new Map(), configCarregada: false, funcionariosCarregados: false,
     dataFormulario: null, rascunhoBanco: false, rascunhoErro: false
 };
@@ -68,7 +68,9 @@ async function requestJSON(url, options = {}, timeout = REQUEST_TIMEOUT_MS) {
             if (response.status === 401 || response.status === 403) mostrarAcesso();
             let message = `Servidor respondeu com erro (${response.status}).`;
             try { const body = await response.json(); if (body.mensagem) message = body.mensagem; } catch {}
-            throw new Error(message);
+            const error = new Error(message);
+            error.httpStatus = response.status;
+            throw error;
         }
         try { return await response.json(); }
         catch { throw new Error('O servidor retornou uma resposta inválida.'); }
@@ -103,10 +105,13 @@ function atualizarStatusSalvamento(kind, message) {
     if (!box) return;
     box.dataset.estado = kind;
     box.querySelector('[data-status-text]').textContent = message;
-    document.getElementById('btnTentarNovamente').hidden = kind !== 'erro' || estadoEscala.rascunhoErro;
+    const date = document.getElementById('data_escala')?.value;
+    const conflito = estadoEscala.conflito?.data === date && estadoEscala.pendente;
+    document.getElementById('btnTentarNovamente').hidden = kind !== 'erro' || estadoEscala.rascunhoErro || conflito;
+    document.getElementById('btnVerVersaoAtual').hidden = !conflito || estadoEscala.salvando;
+    document.getElementById('btnResolverConflito').hidden = !conflito || estadoEscala.salvando;
     const draftButton = document.getElementById('btnSalvarRascunhoBanco');
     if (draftButton) draftButton.hidden = !estadoEscala.pendente || estadoEscala.salvando;
-    const date = document.getElementById('data_escala')?.value;
     document.querySelectorAll('[data-escala-data]').forEach(el => {
         const stale = estadoEscala.pendente && el.dataset.escalaData === date;
         el.classList.toggle('escala-desatualizada', stale);
@@ -185,7 +190,15 @@ function coletarPayloadEscala() {
 async function consultarEscala(data) {
     const result = await requestJSON(`${N8N_BUSCA_URL}?data=${encodeURIComponent(data)}`);
     const row = Array.isArray(result) ? result[0] : result;
+    if (row?.data_escala && row.data_escala.split('T')[0] !== data) {
+        throw new Error('A consulta retornou outra data. A escala não foi salva; confira o webhook de busca.');
+    }
     return row && row.data_escala ? row : null;
+}
+function mesmaVersao(a, b) {
+    if (a === b) return true;
+    const anterior = Date.parse(a), atual = Date.parse(b);
+    return Number.isFinite(anterior) && Number.isFinite(atual) && anterior === atual;
 }
 function conferirPayload(row, payload) {
     if (!row || row.save_request_id !== payload.save_request_id) return false;
@@ -199,6 +212,10 @@ function conferirPayload(row, payload) {
 async function salvarEscalaConfiavel(event) {
     event?.preventDefault();
     if (estadoEscala.salvando) return;
+    if (estadoEscala.conflito?.data === document.getElementById('data_escala').value) {
+        atualizarStatusSalvamento('erro', 'NÃO SALVO/CONFIRMADO. Confira a versão do servidor e use “Substituir versão atual e salvar” se decidir manter o formulário. O rascunho continua preservado.');
+        return;
+    }
     const form = document.getElementById('escalaForm');
     if (!form.reportValidity()) return;
     // Trava antes da primeira espera para impedir duplo toque e alterações durante o envio.
@@ -232,8 +249,9 @@ async function salvarEscalaConfiavel(event) {
         if (retry && conferirPayload(atual, retry)) { payload = retry; }
         else {
             if (atual) {
-                if (estadoEscala.dataBase === data && estadoEscala.versaoBase && atual.ultima_atualizacao !== estadoEscala.versaoBase) {
-                    throw new Error('A escala mudou no servidor desde que você começou a editar. Seu rascunho foi preservado. Abra a versão atual antes de sobrescrever.');
+                if (estadoEscala.dataBase === data && estadoEscala.versaoBase && !mesmaVersao(atual.ultima_atualizacao, estadoEscala.versaoBase)) {
+                    estadoEscala.conflito = {data, versao: atual.ultima_atualizacao};
+                    throw new Error('A escala mudou no servidor desde que você começou a editar. Seu rascunho foi preservado. Veja a versão atual ou escolha substituir após conferir.');
                 }
                 if (estadoEscala.dataBase !== data && !confirm('Já existe uma escala nesta data. Deseja substituir pela versão do formulário?')) {
                     atualizarStatusSalvamento('pendente','Substituição cancelada. Alterações NÃO SALVAS; rascunho preservado.'); return;
@@ -244,13 +262,18 @@ async function salvarEscalaConfiavel(event) {
             estadoEscala.requisicaoPendente = payload;
             salvarRascunhoFormulario();
             const response = await requestJSON(N8N_WEBHOOK_URL,{method:'POST',body:JSON.stringify(payload)});
+            if (response.status === 'conflito') {
+                const error = new Error(response.mensagem || 'A escala mudou no servidor durante o envio.');
+                error.conflito = true;
+                throw error;
+            }
             if (response.status !== 'sucesso' || response.saved?.save_request_id !== payload.save_request_id) {
                 throw new Error(response.mensagem || 'O servidor não confirmou esta versão. Verifique se o backend atualizado foi instalado.');
             }
         }
         const saved = await consultarEscala(data);
         if (!conferirPayload(saved,payload)) throw new Error('A versão consultada não corresponde ao envio. NÃO imprima a escala antiga. Tente novamente.');
-        estadoEscala.pendente = false; estadoEscala.erro = false;
+        estadoEscala.pendente = false; estadoEscala.erro = false; estadoEscala.conflito = null;
         estadoEscala.versaoBase = saved.ultima_atualizacao; estadoEscala.dataBase = data;
         estadoEscala.requisicaoPendente = null;
         let avisoRascunho='';
@@ -264,6 +287,13 @@ async function salvarEscalaConfiavel(event) {
         atualizarStatusSalvamento('salvo',`SALVO E CONFIRMADO · Escala de ${formatarDataBR(data)}. A impressão está liberada.${avisoRascunho}`);
         openTab('historico', false);
     } catch (error) {
+        if ((error.conflito || error.httpStatus === 409) && !estadoEscala.conflito) {
+            try {
+                const data = document.getElementById('data_escala').value;
+                const atual = await consultarEscala(data);
+                if (atual) estadoEscala.conflito = {data, versao: atual.ultima_atualizacao};
+            } catch { /* Mantém a mensagem de erro original e o rascunho. */ }
+        }
         estadoEscala.erro = true;
         atualizarStatusSalvamento('erro',`NÃO SALVO/CONFIRMADO. ${error.message} ${estadoEscala.rascunhoSeguro ? 'Rascunho preservado localmente e será sincronizado com o banco.' : 'Falhou também a proteção local; não feche esta página.'}`);
     } finally {
@@ -271,6 +301,40 @@ async function salvarEscalaConfiavel(event) {
         document.querySelector('.tabs').inert = false;
         if (mobileNav) mobileNav.disabled = false;
         button.disabled = false; button.textContent = '💾 Salvar e confirmar escala';
+        const status = document.getElementById('statusSalvamento');
+        atualizarStatusSalvamento(status.dataset.estado, status.querySelector('[data-status-text]').textContent);
+    }
+}
+
+async function verVersaoAtualDoConflito() {
+    const data = estadoEscala.conflito?.data;
+    if (!data || data !== document.getElementById('data_escala').value) return;
+    document.getElementById('data_busca').value = data;
+    await carregarEscalaContainer('historicoContainer', data);
+    openTab('historico', false);
+}
+
+async function resolverConflitoEscala() {
+    const conflito = estadoEscala.conflito;
+    const data = document.getElementById('data_escala').value;
+    if (!conflito || conflito.data !== data || estadoEscala.salvando) return;
+    try {
+        const atual = await consultarEscala(data);
+        if (!atual) throw new Error('A versão do servidor não foi encontrada. Confira a consulta antes de salvar.');
+        if (!mesmaVersao(atual.ultima_atualizacao, conflito.versao)) {
+            estadoEscala.conflito = {data, versao: atual.ultima_atualizacao};
+            throw new Error('A versão do servidor mudou novamente. Confira-a antes de substituir.');
+        }
+        if (!confirm('A escala foi alterada no servidor. Salvar o formulário atual substituirá TODA a versão do servidor nesta data. Seu rascunho permanece guardado até a confirmação. Deseja continuar?')) return;
+        estadoEscala.versaoBase = atual.ultima_atualizacao;
+        estadoEscala.dataBase = data;
+        estadoEscala.requisicaoPendente = null;
+        estadoEscala.conflito = null;
+        salvarRascunhoFormulario();
+        await salvarEscalaConfiavel();
+    } catch (error) {
+        estadoEscala.erro = true;
+        atualizarStatusSalvamento('erro', `NÃO SALVO/CONFIRMADO. ${error.message} Seu rascunho foi preservado; a impressão continua bloqueada.`);
     }
 }
 

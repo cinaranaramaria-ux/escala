@@ -152,6 +152,8 @@
         <strong data-status-text>Preencha a escala. A impressão será liberada após salvar e confirmar.</strong>
         <div class="status-actions">
             <button id="btnTentarNovamente" type="button" class="btn-action" hidden onclick="salvarEscalaConfiavel()">Tentar salvar novamente</button>
+            <button id="btnVerVersaoAtual" type="button" class="btn-action" hidden onclick="verVersaoAtualDoConflito()">Ver versão do servidor</button>
+            <button id="btnResolverConflito" type="button" class="btn-danger" hidden onclick="resolverConflitoEscala()">Substituir versão atual e salvar</button>
             <button id="btnSalvarRascunhoBanco" type="button" class="btn-action" hidden onclick="salvarRascunhoBancoManual()">Salvar rascunho no banco</button>
         </div>
     </div>
@@ -590,7 +592,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="app-reliability.js?v=20261017-pdf-page-fix"></script>
+    <script src="app-reliability.js?v=20261017-save-conflict-fix"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
         // =========================================================================
@@ -1449,7 +1451,7 @@
                 salvarRascunhoFormulario(); inputData.value = data;
             }
             estadoEscala.dataFormulario = data;
-            modoEdicao = false; estadoEscala.dataBase = null; estadoEscala.versaoBase = null;
+            modoEdicao = false; estadoEscala.dataBase = null; estadoEscala.versaoBase = null; estadoEscala.conflito = null;
             const draft = lerLocal(`escala_rascunho_${data}`);
             gerarCamposFormularioEscala();
             document.getElementById('folgas').value = ''; atualizarTagsVisuais('folgas');
@@ -2785,6 +2787,7 @@
             estadoEscala.versaoBase = d.ultima_atualizacao || null;
             estadoEscala.dataBase = d.data_escala.split('T')[0];
             estadoEscala.requisicaoPendente = null;
+            estadoEscala.conflito = null;
             const savedLayout = parseJSONField(d.json_layout, {});
             if (savedLayout.turnos || savedLayout.tabelas) validarLayout(savedLayout);
             if (Array.isArray(savedLayout.turnos)) turnosConfig = savedLayout.turnos;

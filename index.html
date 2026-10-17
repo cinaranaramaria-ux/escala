@@ -2272,7 +2272,7 @@
                 <div class="sheet-layout"><div class="sheet-main">${shifts}${fiscaisBlock}</div>
                 <table class="extbl sheet-aside"><tbody class="sheet-aside-block"><tr><th class="exhdr">QUANTIDADE DE CAIXAS</th></tr><tr><td>${cxManha} PELA MANHÃ<br>${cxNoite} PELA TARDE/NOITE</td></tr></tbody><tbody class="sheet-aside-block"><tr><th class="exhdr">QUANTIDADE DE FISCAIS</th></tr><tr><td>${fiscManha} PELA MANHÃ<br>${fiscNoite} PELA TARDE/NOITE</td></tr></tbody><tbody class="sheet-aside-block"><tr><th class="exhdr">FOLGAS</th></tr><tr><td>${nomesUnicos(dados.folgas).map(n=>escapeHTML(n.toUpperCase())).join('<br>') || '-'}</td></tr></tbody></table></div></div>
                 ${extras ? `<div class="sheet-extras">${extras}</div>` : ''}
-                ${obs ? `<div class="sheet-observacoes" style="color:${safeColor(cor)}"><strong>OBSERVAÇÕES:</strong> ${escapeHTML(obs)}</div>` : ''}</div></section>`;
+                ${obs ? `<div class="sheet-observation-spacer" aria-hidden="true"></div><div class="sheet-observacoes" style="color:${safeColor(cor)}"><strong>OBSERVAÇÕES:</strong> ${escapeHTML(obs)}</div>` : ''}</div></section>`;
         }
 
         // ------------------ GERENCIAMENTO DE CONFIGURAÇÕES DE TURNOS E TABELAS EXTRAS NA UI ------------------

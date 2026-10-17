@@ -23,6 +23,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .extbl .exsub { background:var(--cor-secundaria); font-weight:700; text-align:center; }
 .sheet-aside td { padding:4px; }
 .sheet-observacoes { white-space:pre-wrap; border:1px solid #000; margin:2px 0 0; padding:3px 4px; font-size:12px; line-height:1.15; break-inside:avoid; page-break-inside:avoid; }
+.sheet-observation-spacer { display:none; break-inside:avoid; page-break-inside:avoid; }
 .sheet-extras { display:flex; gap:12px; flex-wrap:wrap; align-items:start; }
 .sheet-extra { flex:1 1 280px; min-width:0; margin-bottom:12px; }
 .versao-salva { color:#166534; font-size:.8rem; margin:6px 0; }
@@ -56,15 +57,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     .status-actions > button { flex:1 1 160px; }
 }
 @media print {
-    @page { margin:8mm; }
-    body { padding:0 !important; font-size:11px; line-height:1.12; }
+    @page { size:A4; margin:8mm; }
+    body { width:194mm !important; max-width:none !important; padding:0 !important; font-size:11px; line-height:1.12; }
     .tab-content { display:none !important; }
     .tab-content.active { display:block !important; animation:none !important; opacity:1 !important; transform:none !important; }
     .tab-content.active.print-hide, .print-hide, .versao-salva { display:none !important; }
     .sheet-layout { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,1fr); min-width:0; align-items:start; }
-    .sheet { display:flex; flex-direction:column; min-height:calc(297mm - 16mm); }
-    .sheet > .table-responsive-wrapper { flex:0 0 auto; }
-    .sheet-observacoes { margin-top:auto; flex:0 0 auto; }
+    .sheet { display:block; min-height:0; }
+    .sheet-observation-spacer { display:block; height:0; }
+    .sheet-observacoes { margin-top:0; }
     .sheet-main { min-width:0; }
     .shift-block, .sheet-fiscais, .sheet-aside-block, .sheet-extra { break-inside:avoid; page-break-inside:avoid; }
     .sheet-heading { min-width:0; font-size:12px; padding:3px; }

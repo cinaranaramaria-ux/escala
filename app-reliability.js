@@ -319,13 +319,35 @@ async function imprimirEscalaAtual() {
         window.print();
     } catch(e) { alert(`Impressão bloqueada. ${e.message}`); }
 }
+function alinharObservacoesNoFimDaFolha() {
+    const alturaUtilA4 = (297 - 16) * 96 / 25.4;
+    const observacoes = [...document.querySelectorAll('.tab-content.active .sheet-observacoes')];
+    observacoes.forEach(element => {
+        const espaco = element.previousElementSibling?.classList.contains('sheet-observation-spacer') ? element.previousElementSibling : null;
+        if (espaco) espaco.style.height = '0';
+        element.style.marginTop = '0';
+    });
+    observacoes.forEach(element => {
+        const rect = element.getBoundingClientRect();
+        const topoDocumento = rect.top + window.scrollY;
+        const posicaoNaFolha = ((topoDocumento % alturaUtilA4) + alturaUtilA4) % alturaUtilA4;
+        const espacoAteORodape = Math.max(0, ((alturaUtilA4 - posicaoNaFolha - rect.height) % alturaUtilA4 + alturaUtilA4) % alturaUtilA4 - 16);
+        const espaco = element.previousElementSibling?.classList.contains('sheet-observation-spacer') ? element.previousElementSibling : null;
+        if (espaco && espacoAteORodape > 1) espaco.style.height = `${espacoAteORodape}px`;
+    });
+}
 window.addEventListener('beforeprint', () => {
     const tab = document.querySelector('.tab-content.active')?.id;
     const id = tab === 'vigente' ? 'escalaHojeContainer' : tab === 'historico' ? 'historicoContainer' : null;
     const row = id && estadoEscala.dadosExibidos.get(id);
     document.body.classList.toggle('impressao-bloqueada', tab !== 'ausencias' && (!row || !podeImprimir(row)));
+    if (!document.body.classList.contains('impressao-bloqueada')) alinharObservacoesNoFimDaFolha();
 });
-window.addEventListener('afterprint', () => document.body.classList.remove('impressao-bloqueada'));
+window.addEventListener('afterprint', () => {
+    document.body.classList.remove('impressao-bloqueada');
+    document.querySelectorAll('.sheet-observation-spacer').forEach(element => { element.style.height = ''; });
+    document.querySelectorAll('.sheet-observacoes').forEach(element => { element.style.marginTop = ''; });
+});
 window.addEventListener('beforeunload', event => {
     if (!estadoEscala.pendente) return;
     salvarRascunhoFormulario(); event.preventDefault(); event.returnValue = '';

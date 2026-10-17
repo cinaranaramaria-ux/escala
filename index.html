@@ -141,21 +141,6 @@
 <body>
     <h1 class="sr-only">Gerenciador de Escalas</h1>
     <div class="print-block-message">IMPRESSÃO BLOQUEADA — A escala não foi salva e confirmada. Volte ao sistema, salve ou atualize a consulta antes de imprimir.</div>
-    <div id="acessoEquipe" class="access-screen print-hide">
-        <form class="card access-panel" onsubmit="entrarEquipe(event)">
-            <h2>Entrar no sistema de escalas</h2>
-            <p>Use a senha compartilhada da equipe.</p>
-            <label for="codigoAcesso">Senha da equipe</label>
-            <input id="codigoAcesso" type="password" autocomplete="current-password" required placeholder="Digite a senha">
-            <label class="access-remember"><input id="lembrarAcesso" type="checkbox" checked> Manter conectado neste aparelho</label>
-            <button id="btnEntrar" type="submit" class="btn-action">Entrar</button>
-            <p id="statusAcesso" role="status" aria-live="polite"></p>
-        </form>
-    </div>
-    <div id="barraSessao" class="session-bar print-hide" hidden>
-        <span>Acesso da equipe ativo neste navegador</span>
-        <button type="button" class="btn-action" onclick="sairEquipe()">Sair deste aparelho</button>
-    </div>
     <div id="statusSalvamento" class="save-status print-hide" data-estado="pendente" role="status" aria-live="polite">
         <strong data-status-text>Preencha a escala. A impressão será liberada após salvar e confirmar.</strong>
         <div class="status-actions">
@@ -600,7 +585,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="app-reliability.js?v=20261017-login-diagnostics"></script>
+    <script src="app-reliability.js?v=20261017-no-auth"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
         // =========================================================================
@@ -719,20 +704,18 @@
         /**
          * Carrega as configurações globais do sistema cadastradas no Supabase.
          */
-        async function carregarConfiguracoes(dadosIniciais) {
+        async function carregarConfiguracoes() {
             estadoEscala.configCarregada = false;
             let configObj = null;
             
-            if (Array.isArray(dadosIniciais)) {
-                configObj = dadosIniciais[0] || null;
-                estadoEscala.configCarregada = true;
-            } else try {
+            try {
                 const res = await fetchAPI(N8N_GET_CONFIG);
                 if (res.ok) {
                     const dados = await res.json();
                     configObj = Array.isArray(dados) ? dados[0] : dados;
                     estadoEscala.configCarregada = true;
                 } else {
+                    if (res.status === 401 || res.status === 403) estadoEscala.acessoRecusado = true;
                     console.warn('[Configurações] Servidor respondeu com status:', res.status);
                 }
             } catch (e) {
@@ -913,6 +896,7 @@
             estadoEscala.funcionariosCarregados = false;
             try {
                 const res = await fetchAPI(N8N_GET_FUNC);
+                if (res.status === 401 || res.status === 403) estadoEscala.acessoRecusado = true;
                 if (!res.ok) throw new Error(`Status HTTP: ${res.status}`);
                 
                 let dados = await res.json();
@@ -1129,7 +1113,7 @@
             const ok = gravarLocal(key, content);
             gravarLocal(`escala_rascunho_${dtEscala}`, content);
             registrarRascunhoSalvo(ok);
-            if (ok && !estadoEscala.inicializando && !estadoEscala.salvando && tokenAcesso()) agendarSincronizacaoRascunho(dtEscala, rascunhoObj);
+            if (ok && !estadoEscala.inicializando && !estadoEscala.salvando) agendarSincronizacaoRascunho(dtEscala, rascunhoObj);
         }
 
         /**
@@ -1178,7 +1162,7 @@
             if (ok) alert('Rascunho salvo no banco da equipe. A escala final continua pendente e não pode ser impressa.');
         }
         async function recuperarRascunhoBanco(data, {force=false}={}) {
-            if (!data || dataRascunhoRestaurando===data || !tokenAcesso()) return false;
+            if (!data || dataRascunhoRestaurando===data) return false;
             dataRascunhoRestaurando=data;
             try {
                 const result=await requestJSON(`${N8N_GET_DRAFT}?data=${encodeURIComponent(data)}`);
@@ -2919,12 +2903,12 @@
         // =========================================================================
         // INICIALIZAÇÃO E BOOT DO SISTEMA
         // =========================================================================
-        async function inicializarAplicacao(configuracoesIniciais) {
+        async function inicializarAplicacao() {
             estadoEscala.inicializando = true;
             const now = new Date();
             document.getElementById('mes_previsao').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
             if (!document.getElementById('data_escala').value) document.getElementById('data_escala').value = getHojeISO();
-            await Promise.all([carregarConfiguracoes(configuracoesIniciais), carregarFuncionariosNuvem()]);
+            await Promise.all([carregarConfiguracoes(), carregarFuncionariosNuvem()]);
             gerarCamposFormularioEscala();
             carregarRascunhoFormulario();
             if (estadoEscala.funcionariosCarregados) renderizarListaFunc();
@@ -2935,11 +2919,15 @@
             await recuperarRascunhoBanco(estadoEscala.dataFormulario,{force:true});
             atualizarResumoFormulario();
             estadoEscala.inicializando = false;
-            if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) atualizarStatusSalvamento('erro','Não foi possível carregar a base do servidor. Confira acesso e conexão; o rascunho foi mantido.');
+            if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) atualizarStatusSalvamento('erro',estadoEscala.acessoRecusado
+                ? 'O n8n ainda exige autenticação. Desative Header Auth nos webhooks do workflow ativo e publique a alteração. A impressão permanece bloqueada.'
+                : 'Não foi possível carregar a base do servidor. Confira a conexão; o rascunho foi mantido.');
             restaurarAbaSalva();
         }
-        if (tokenAcesso()) iniciarComAcessoSalvo();
-        else mostrarAcesso();
+        inicializarAplicacao().catch(e => {
+            estadoEscala.inicializando = false;
+            atualizarStatusSalvamento('erro', `Não foi possível iniciar. ${e.message}`);
+        });
 
 /* </BLOCO_JS_INIT_EVENTOS> */
     </script>

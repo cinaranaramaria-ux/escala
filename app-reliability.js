@@ -2,7 +2,7 @@
 const estadoEscala = {
     pendente: false, salvando: false, inicializando: true, rascunhoSeguro: false,
     versaoBase: null, dataBase: null, requisicaoPendente: null, conflito: null, erro: false,
-    consultas: {}, dadosExibidos: new Map(), configCarregada: false, funcionariosCarregados: false,
+    consultas: {}, dadosExibidos: new Map(), configCarregada: false, funcionariosCarregados: false, acessoRecusado: false,
     dataFormulario: null, rascunhoBanco: false, rascunhoErro: false
 };
 const REQUEST_TIMEOUT_MS = 15000;
@@ -42,24 +42,15 @@ function nomesUnicos(value) {
 function lerLocal(key) { try { return localStorage.getItem(key); } catch { return null; } }
 function gravarLocal(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } }
 function removerLocal(key) { try { localStorage.removeItem(key); } catch { /* Mantém a aplicação utilizável. */ } }
-const CHAVE_ACESSO = 'escala_access_token';
-function tokenAcesso() {
-    try { return sessionStorage.getItem(CHAVE_ACESSO) || lerLocal(CHAVE_ACESSO) || ''; }
-    catch { return lerLocal(CHAVE_ACESSO) || ''; }
-}
-function limparAcesso() {
-    try { sessionStorage.removeItem(CHAVE_ACESSO); } catch { /* Pode estar indisponível no navegador. */ }
-    removerLocal(CHAVE_ACESSO);
-}
+// A versão temporária sem login apaga a senha que versões anteriores guardaram no navegador.
+try { sessionStorage.removeItem('escala_access_token'); } catch { /* Armazenamento indisponível. */ }
+removerLocal('escala_access_token');
 
 async function fetchAPI(url, options = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-        const response = await fetch(url, {...options, cache:'no-store', signal:controller.signal,
-            headers:{...options.headers, ...(tokenAcesso() ? {'X-Escala-Token':tokenAcesso()} : {})}});
-        if (response.status === 401 || response.status === 403) invalidarAcesso();
-        return response;
+        return await fetch(url, {...options, cache:'no-store', signal:controller.signal});
     } finally { clearTimeout(timer); }
 }
 
@@ -69,12 +60,12 @@ async function requestJSON(url, options = {}, timeout = REQUEST_TIMEOUT_MS) {
     try {
         const response = await fetch(url, {
             ...options, cache: 'no-store', signal: controller.signal,
-            headers: { ...(options.body ? {'Content-Type':'application/json'} : {}),
-                ...(tokenAcesso() ? {'X-Escala-Token':tokenAcesso()} : {}), ...options.headers }
+            headers: { ...(options.body ? {'Content-Type':'application/json'} : {}), ...options.headers }
         });
         if (!response.ok) {
-            if (response.status === 401 || response.status === 403) invalidarAcesso();
-            let message = `Servidor respondeu com erro (${response.status}).`;
+            let message = response.status === 401 || response.status === 403
+                ? 'O n8n ainda exige autenticação. Desative Header Auth nos webhooks do workflow ativo e publique a alteração.'
+                : `Servidor respondeu com erro (${response.status}).`;
             try { const body = await response.json(); if (body.mensagem) message = body.mensagem; } catch {}
             const error = new Error(message);
             error.httpStatus = response.status;
@@ -86,77 +77,6 @@ async function requestJSON(url, options = {}, timeout = REQUEST_TIMEOUT_MS) {
         if (error.name === 'AbortError') throw new Error('O servidor demorou a responder. O salvamento não foi confirmado.');
         throw error;
     } finally { clearTimeout(timer); }
-}
-
-function mostrarAcesso(message = '') {
-    const card = document.getElementById('acessoEquipe');
-    if (card) card.hidden = false;
-    document.getElementById('barraSessao').hidden = true;
-    if (message) document.getElementById('statusAcesso').textContent = message;
-}
-function ocultarAcesso() {
-    document.getElementById('acessoEquipe').hidden = true;
-    const bar = document.getElementById('barraSessao');
-    bar.querySelector('span').textContent = lerLocal(CHAVE_ACESSO) ? 'Acesso lembrado neste navegador' : 'Acesso ativo apenas nesta sessão';
-    bar.hidden = false;
-}
-function invalidarAcesso() {
-    limparAcesso();
-    mostrarAcesso('A senha salva não foi aceita. Entre novamente.');
-}
-function mensagemErroAcesso(error) {
-    if (error.httpStatus === 401 || error.httpStatus === 403) {
-        return 'O n8n recusou a senha da equipe. Confira se a credencial Header Auth usa o cabeçalho X-Escala-Token e se o valor é exatamente a senha digitada.';
-    }
-    return `Não foi possível verificar o acesso. ${error.message} Confira a conexão e tente novamente.`;
-}
-async function iniciarComAcessoSalvo() {
-    try {
-        const configuracoes = await requestJSON(N8N_GET_CONFIG);
-        if (!Array.isArray(configuracoes)) throw new Error('O servidor retornou uma resposta inesperada.');
-        await inicializarAplicacao(configuracoes);
-        if (estadoEscala.configCarregada && estadoEscala.funcionariosCarregados) ocultarAcesso();
-        else mostrarAcesso('A senha foi aceita, mas não foi possível carregar os dados. Confira a conexão e recarregue a página.');
-    } catch (error) {
-        estadoEscala.inicializando = false;
-        mostrarAcesso(mensagemErroAcesso(error));
-        atualizarStatusSalvamento('erro', `Não foi possível iniciar. ${error.message}`);
-    }
-}
-function sairEquipe() {
-    if (estadoEscala.pendente) salvarRascunhoFormulario();
-    limparAcesso();
-    window.location.reload();
-}
-async function entrarEquipe(event) {
-    event?.preventDefault();
-    const input = document.getElementById('codigoAcesso');
-    const button = document.getElementById('btnEntrar');
-    const status = document.getElementById('statusAcesso');
-    if (!input.value.trim()) { status.textContent = 'Informe a senha da equipe.'; return; }
-    status.textContent = 'Verificando a senha…';
-    button.disabled = true;
-    let configuracoes;
-    try {
-        sessionStorage.setItem(CHAVE_ACESSO, input.value.trim());
-        configuracoes = await requestJSON(N8N_GET_CONFIG);
-        if (!Array.isArray(configuracoes)) throw new Error('O servidor não confirmou o acesso.');
-        const lembrar = document.getElementById('lembrarAcesso').checked;
-        if (lembrar) {
-            if (!gravarLocal(CHAVE_ACESSO, input.value.trim())) status.textContent = 'Acesso aceito, mas este navegador não permitiu lembrar a senha.';
-            else status.textContent = '';
-        } else { removerLocal(CHAVE_ACESSO); status.textContent = ''; }
-        input.value = '';
-    } catch (e) {
-        limparAcesso();
-        status.textContent = mensagemErroAcesso(e);
-        button.disabled = false;
-        return;
-    }
-    ocultarAcesso();
-    try { await inicializarAplicacao(configuracoes); }
-    catch (e) { atualizarStatusSalvamento('erro', `Não foi possível iniciar. ${e.message}`); }
-    finally { button.disabled = false; }
 }
 
 function atualizarStatusSalvamento(kind, message) {

@@ -136,7 +136,7 @@
     </style>
 <!-- </BLOCO_CSS_ESTILOS> -->
 
-<link rel="stylesheet" href="escala.css">
+<link rel="stylesheet" href="escala.css?v=20261017-monthly">
 </head>
 <body>
     <h1 class="sr-only">Gerenciador de Escalas</h1>
@@ -190,6 +190,19 @@
                 <span class="chip-folga bg-extra">Extra/Banco</span>
                 <span class="chip-folga bg-ferias">Férias</span>
                 <span class="chip-folga bg-ausencia">Ausência/Atestado</span>
+            </div>
+            <div class="monthly-tools print-hide">
+                <button id="btnGerarMes" type="button" class="btn-action" onclick="gerarEscalasDoMes()">Gerar e publicar escalas do mês</button>
+                <span id="statusGeracaoMes" role="status" aria-live="polite">Usa os padrões cadastrados; escalas e rascunhos existentes serão preservados. Cada dia só conta como publicado após confirmação do banco.</span>
+                <details class="monthly-holidays">
+                    <summary>Feriados deste mês</summary>
+                    <div class="monthly-holiday-fields">
+                        <label>Data <input id="novoFeriadoData" type="date"></label>
+                        <label>Nome <input id="novoFeriadoNome" type="text" maxlength="80" placeholder="Ex.: feriado municipal"></label>
+                        <button type="button" class="btn-action" onclick="cadastrarFeriado()">Adicionar feriado</button>
+                    </div>
+                    <div id="listaFeriadosMes"></div>
+                </details>
             </div>
             
             <div id="calendarHeader" class="calendar-grid" style="margin-top:0; margin-bottom:4px;">
@@ -585,7 +598,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="app-reliability.js?v=20261017-no-auth"></script>
+    <script src="app-reliability.js?v=20261017-monthly"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
         // =========================================================================
@@ -811,7 +824,7 @@
          */
         async function salvarConfiguracoes({notificar=true}={}) {
 
-            alertasConfig = {
+            alertasConfig = {...alertasConfig,
                 folgaFixa: document.getElementById('alerta_cfg_folga_fixa').checked,
                 folgaCiclo: document.getElementById('alerta_cfg_folga_ciclo').checked,
                 folgaExtra: document.getElementById('alerta_cfg_folga_extra').checked,
@@ -1078,7 +1091,7 @@
                 const e = div.querySelector('.fiscal-ent')?.value.trim() || '';
                 const i = div.querySelector('.fiscal-int')?.value.trim() || ''; 
                 const s = div.querySelector('.fiscal-sai')?.value.trim() || '';
-                if (n || e || i || s) rascunhoObj.fiscais.push({ nome: n, ent: e, int: i, sai: s });
+                if (n || e || i || s) rascunhoObj.fiscais.push({ nome: n, ent: e, int: i, sai: s, periodo: div.querySelector('.fiscal-periodo')?.value || periodoFiscal(e) });
             });
 
             document.querySelectorAll('.excecao-box').forEach(div => {
@@ -1289,7 +1302,7 @@
                 if (contFisc) {
                     contFisc.innerHTML = '';
                     rascunho.fiscais.forEach(f => {
-                        if (typeof addFiscalUI === 'function') addFiscalUI(f.nome, f.ent, f.int, f.sai);
+                        if (typeof addFiscalUI === 'function') addFiscalUI(f.nome, f.ent, f.int, f.sai, f.periodo);
                     });
                 }
             }
@@ -1364,8 +1377,9 @@
                 nome:valorSelect(div.querySelector('.fiscal-nome')).trim(),
                 ent:div.querySelector('.fiscal-ent')?.value.trim()||'',
                 int:div.querySelector('.fiscal-int')?.value.trim()||'',
-                sai:div.querySelector('.fiscal-sai')?.value.trim()||''
-            })).filter(f=>Object.values(f).some(Boolean));
+                sai:div.querySelector('.fiscal-sai')?.value.trim()||'',
+                periodo:div.querySelector('.fiscal-periodo')?.value||'manha'
+            })).filter(f=>f.nome);
             excecoesPadraoConfig=[...document.querySelectorAll('#containerExcecoesHorario .excecao-box')].map(div=>({
                 nomes:div.querySelector('.exc-nomes-hidden')?.value||'',
                 ent:div.querySelector('.exc-ent')?.value.trim()||'',
@@ -1401,7 +1415,7 @@
         function aplicarPadraoNoFormulario() {
             turnosConfig.forEach(t=>{const input=document.getElementById(`turno_${t.id}`);if(input){input.value=t.defaultPessoas||'';atualizarTagsVisuais(input.id);}});
             document.getElementById('containerFiscais').replaceChildren();
-            fiscaisPadraoConfig.forEach(f=>addFiscalUI(f.nome,f.ent,f.int,f.sai));
+            fiscaisPadraoConfig.forEach(f=>addFiscalUI(f.nome,f.ent,f.int,f.sai,f.periodo));
             document.getElementById('containerExcecoesHorario').replaceChildren();
             excecoesPadraoConfig.forEach(e=>addExcecaoHorarioUI(e.nomes||e.nome||'',e.ent,e.int,e.sai));
             tabelasExtrasConfig.forEach(t=>{
@@ -1436,6 +1450,46 @@
         let modalTargetInput = '';
         let modalMode = 'normal';
 
+        function feriadosCadastrados() {
+            return Array.isArray(alertasConfig.feriados) ? alertasConfig.feriados.filter(f => /^\d{4}-\d{2}-\d{2}$/.test(f?.data || '') && typeof f.nome === 'string') : [];
+        }
+        function renderizarFeriadosCadastrados() {
+            const mes=document.getElementById('mes_previsao')?.value || '';
+            const lista=document.getElementById('listaFeriadosMes');
+            if (!lista) return;
+            const feriados=feriadosCadastrados().filter(f=>f.data.startsWith(mes));
+            lista.innerHTML=feriados.length ? feriados.map(f=>`<span>${escapeHTML(formatarDataBR(f.data))} — ${escapeHTML(f.nome)} <button type="button" aria-label="Remover feriado ${escapeHTML(f.nome)}" onclick="removerFeriado('${f.data}')">✖</button></span>`).join('') : '<span>Nenhum feriado cadastrado neste mês.</span>';
+        }
+        async function alterarFeriados(novos) {
+            if (!estadoEscala.configCarregada) return alert('Carregue as configurações do servidor antes de alterar feriados.'), false;
+            const anteriores=feriadosCadastrados();
+            alertasConfig.feriados=novos;
+            const salvo=await salvarConfiguracoes({notificar:false});
+            if (!salvo) {
+                alertasConfig.feriados=anteriores;
+                gravarLocal('cfg_alertas_individuais',JSON.stringify(alertasConfig));
+            }
+            renderizarFeriadosCadastrados();
+            if (salvo) await renderizarCalendario();
+            return salvo;
+        }
+        async function cadastrarFeriado() {
+            const data=document.getElementById('novoFeriadoData').value;
+            const nome=document.getElementById('novoFeriadoNome').value.trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !nome) return alert('Informe a data e o nome do feriado.');
+            const novos=feriadosCadastrados().filter(f=>f.data!==data);
+            novos.push({data,nome}); novos.sort((a,b)=>a.data.localeCompare(b.data));
+            if (await alterarFeriados(novos)) {
+                document.getElementById('novoFeriadoNome').value='';
+                document.getElementById('mes_previsao').value=data.slice(0,7);
+                renderizarFeriadosCadastrados();
+            }
+        }
+        async function removerFeriado(data) {
+            if (!confirm(`Remover o feriado de ${formatarDataBR(data)}?`)) return;
+            await alterarFeriados(feriadosCadastrados().filter(f=>f.data!==data));
+        }
+
         // ------------------ MUDANÇA DE DATA E PREVISÕES ------------------
         function aoMudarDataEscala() {
             const inputData = document.getElementById('data_escala');
@@ -1464,6 +1518,7 @@
         async function renderizarCalendario() {
             const mesAno = document.getElementById('mes_previsao')?.value;
             if (!mesAno) return;
+            renderizarFeriadosCadastrados();
             const [ano, mes] = mesAno.split('-');
             const diasNoMes = new Date(ano, mes, 0).getDate();
             const primeiroDiaDaSemana = new Date(ano, mes - 1, 1).getDay();
@@ -1494,10 +1549,12 @@
             // Loop único montando o HTML na memória (Evita Repaint do DOM)
             for (let dia = 1; dia <= diasNoMes; dia++) {
                 const dataISO = `${ano}-${mes}-${String(dia).padStart(2,'0')}`;
+                const feriado = feriadosCadastrados().find(f=>f.data===dataISO);
                 let desktopChipsHTML = '';
                 let mobileDotsHTML = '';
                 let folgantesListaModal = [];
                 let offCount = 0;
+                if (feriado) desktopChipsHTML += `<div class="calendar-holiday" title="${escapeHTML(feriado.nome)}">★ ${escapeHTML(feriado.nome)}</div>`;
 
                 const escalaSalva = escalasDoMes.find(e => formatarDataBR(e.data_escala) === formatarDataBR(dataISO));
                 if (escalaSalva) {
@@ -1737,30 +1794,114 @@
             }
         }
 
+        function nomesFolgaConfigurada(dataEscala, equipe=funcionarios) {
+            return equipe.filter(f => !isDesativado(f,dataEscala) && !isDeFerias(f,dataEscala) && !getObjAusencia(f,dataEscala)
+                && (getObjRegraFolgaCombinada(f,dataEscala) || getObjFolgaExtra(f,dataEscala))).map(f => f.nome);
+        }
+
         function autocompletarTodasFolgas() {
             const dataEscala = document.getElementById('data_escala')?.value;
             if (!dataEscala) return alert('Selecione uma data para a escala primeiro!'); 
-
-            let folgantes = [];
-            funcionarios.forEach(f => {
-                if (isDesativado(f, dataEscala) || isDeFerias(f, dataEscala) || getObjAusencia(f, dataEscala)) return;
-                const altIndiv = f.alertasIndividuais || {};
-                const regraObj = getObjRegraFolgaCombinada(f, dataEscala);
-                const extraObj = getObjFolgaExtra(f, dataEscala);
-
-                if (regraObj) {
-                    if ((regraObj.tipo === 'fixa' && alertasConfig.folgaFixa && altIndiv.fixa !== false) || 
-                        (regraObj.tipo === 'ciclo' && alertasConfig.folgaCiclo && altIndiv.ciclo !== false)) {
-                        folgantes.push(f.nome);
-                    }
-                } else if (extraObj && alertasConfig.folgaExtra && altIndiv.extra !== false) {
-                    folgantes.push(f.nome);
-                }
-            });
-
             const folgasInput = document.getElementById('folgas');
             if (folgasInput) {
-                aplicarAlocacao(folgasInput, folgantes);
+                aplicarAlocacao(folgasInput, [...nomesUnicos(folgasInput.value), ...nomesFolgaConfigurada(dataEscala)], {confirmar:false});
+            }
+        }
+
+        function montarEscalaDoPadrao(data, padrao, equipe, feriado) {
+            const folgas=nomesUnicos(nomesFolgaConfigurada(data,equipe).join(','));
+            const indisponiveis=new Set(equipe.filter(f=>isDesativado(f,data) || isDeFerias(f,data) || getObjAusencia(f,data)).map(f=>normalizeStr(f.nome)));
+            const usados=new Set([...folgas.map(normalizeStr),...indisponiveis]);
+            const reservar=nome=>{
+                const chave=normalizeStr(nome);
+                if (!chave || usados.has(chave)) return false;
+                usados.add(chave); return true;
+            };
+            const turnos={};
+            const nomesEmTurnos=new Set();
+            padrao.turnos.forEach(t=>{
+                const nomes=nomesUnicos(t.defaultPessoas).filter(reservar);
+                turnos[t.id]=nomes.join(',');
+                nomes.forEach(n=>nomesEmTurnos.add(normalizeStr(n)));
+            });
+            const fiscais=padrao.fiscais.filter(f=>f.nome && reservar(f.nome)).map(f=>({...f,periodo:periodoFiscal(f.ent,f.periodo)}));
+            const tabelasExtras={};
+            padrao.tabelas.forEach(t=>{
+                const linhas=(t.defaultRows||[]).filter(row=>row[t.colunas[0]] && reservar(row[t.colunas[0]]));
+                if (linhas.length) tabelasExtras[t.id]=linhas;
+            });
+            const excecoes=padrao.excecoes.map(e=>({...e,nomes:nomesUnicos(e.nomes||e.nome).filter(n=>nomesEmTurnos.has(normalizeStr(n))).join(',')})).filter(e=>e.nomes);
+            const observacoes=feriado ? `Feriado: ${feriado.nome}` : '';
+            return {data_escala:data,turnos,folgas:folgas.join(','),fiscais,excecoes,tabelasExtras,observacoes,
+                cor_observacoes:'#000000',modoEdicao:false,versaoBase:null,dataBase:null,requisicaoPendente:null,
+                json_layout:{turnos:padrao.turnos,tabelas:padrao.tabelas},atualizadoEm:new Date().toISOString()};
+        }
+
+        function payloadEscalaMensal(rascunho) {
+            return {data_escala:rascunho.data_escala,json_turnos:rascunho.turnos,json_layout:rascunho.json_layout,
+                folgas:rascunho.folgas,
+                fiscais:rascunho.fiscais.map(serializarFiscal).join('||'),
+                json_excecoes_horario:JSON.stringify(rascunho.excecoes),
+                json_tabelas_extras:JSON.stringify(rascunho.tabelasExtras),
+                observacoes:rascunho.observacoes ? `#000000|${rascunho.observacoes}` : '',
+                expected_updated_at:null,
+                save_request_id:crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`};
+        }
+
+        let geracaoMesEmCurso=false;
+        async function gerarEscalasDoMes() {
+            if (geracaoMesEmCurso) return;
+            const mes=document.getElementById('mes_previsao')?.value;
+            if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes||'')) return alert('Selecione um mês válido.');
+            if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) return alert('Carregue as configurações e os colaboradores do servidor antes de gerar o mês.');
+            const [ano,numeroMes]=mes.split('-').map(Number);
+            const diasNoMes=new Date(ano,numeroMes,0).getDate();
+            if (!confirm(`Gerar e PUBLICAR as escalas de ${mes}? Serão usados os padrões e as folgas cadastradas. Datas com escala ou rascunho existentes não serão alteradas. Cada dia será conferido no banco antes de aparecer como publicado.`)) return;
+            geracaoMesEmCurso=true;
+            const button=document.getElementById('btnGerarMes');
+            const status=document.getElementById('statusGeracaoMes');
+            button.disabled=true;
+            if (estadoEscala.pendente) { gravarRascunhoDebounced.cancel(); salvarRascunhoFormulario(); }
+            const padrao=copiarPadraoAtual();
+            const equipe=typeof structuredClone==='function' ? structuredClone(funcionarios) : JSON.parse(JSON.stringify(funcionarios));
+            const feriados=new Map(feriadosCadastrados().map(f=>[f.data,f]));
+            let publicados=0,pulados=0,erro='';
+            try {
+                validarLayout({turnos:padrao.turnos,tabelas:padrao.tabelas});
+                status.textContent='Consultando as escalas já publicadas…';
+                const result=await requestJSON(`${N8N_BUSCA_URL}?mes=${encodeURIComponent(mes)}`);
+                const existentes=Array.isArray(result) ? result : result?.data_escala ? [result] : null;
+                if (!existentes || existentes.some(row=>!row.data_escala || !row.data_escala.startsWith(mes))) throw new Error('A consulta do mês retornou dados inesperados. Nada foi sobrescrito.');
+                const datasSalvas=new Set(existentes.map(row=>row.data_escala.slice(0,10)));
+                for (let dia=1;dia<=diasNoMes;dia++) {
+                    const data=`${mes}-${String(dia).padStart(2,'0')}`;
+                    status.textContent=`Dia ${dia}/${diasNoMes}: ${publicados} publicadas, ${pulados} preservadas. Impressão apenas após confirmação.`;
+                    if (datasSalvas.has(data) || lerLocal(`escala_rascunho_${data}`)) { pulados++; continue; }
+                    const remoto=await requestJSON(`${N8N_GET_DRAFT}?data=${encodeURIComponent(data)}`);
+                    if (remoto?.payload || remoto?.status==='ok') { pulados++; continue; }
+                    if (remoto?.status!=='vazio') throw new Error(`Não foi possível confirmar se ${formatarDataBR(data)} já tem rascunho. Geração interrompida.`);
+                    const atual=await consultarEscala(data);
+                    if (atual) { datasSalvas.add(data); pulados++; continue; }
+                    const rascunho=montarEscalaDoPadrao(data,padrao,equipe,feriados.get(data));
+                    if (!gravarLocal(`escala_rascunho_${data}`,JSON.stringify(rascunho))) throw new Error(`Não foi possível proteger o rascunho de ${formatarDataBR(data)} neste aparelho.`);
+                    const payload=payloadEscalaMensal(rascunho);
+                    let resposta;
+                    try { resposta=await requestJSON(N8N_WEBHOOK_URL,{method:'POST',body:JSON.stringify(payload)}); }
+                    catch (e) {
+                        const possivelSalvo=await consultarEscala(data).catch(()=>null);
+                        if (!conferirPayload(possivelSalvo,payload)) throw e;
+                    }
+                    if (resposta && (resposta.status!=='sucesso' || resposta.saved?.save_request_id!==payload.save_request_id)) throw new Error(`O servidor não confirmou ${formatarDataBR(data)}.`);
+                    const salvo=await consultarEscala(data);
+                    if (!conferirPayload(salvo,payload)) throw new Error(`A leitura do banco não confirmou ${formatarDataBR(data)}. O rascunho local foi preservado.`);
+                    removerLocal(`escala_rascunho_${data}`);
+                    datasSalvas.add(data); publicados++;
+                }
+            } catch(e) { erro=e.message; console.error('[Geração mensal] Interrompida:',e); }
+            finally {
+                geracaoMesEmCurso=false; button.disabled=false;
+                status.textContent=`${publicados} escala(s) publicada(s) e confirmada(s); ${pulados} data(s) preservada(s). ${erro ? `Geração interrompida: ${erro} Revise a data pendente antes de tentar novamente.` : 'Mês concluído.'}`;
+                await renderizarCalendario();
             }
         }
 
@@ -1808,7 +1949,7 @@
                         t.defaultRows.forEach(r => addLinhaTabelaExtraUI(t.id, r));
                     }
                 });
-                fiscaisPadraoConfig.forEach(f => addFiscalUI(f.nome, f.ent, f.int, f.sai));
+                fiscaisPadraoConfig.forEach(f => addFiscalUI(f.nome, f.ent, f.int, f.sai, f.periodo));
                 excecoesPadraoConfig.forEach(e => addExcecaoHorarioUI(e.nomes || e.nome || '', e.ent, e.int, e.sai));
             }
 
@@ -2071,12 +2212,19 @@
         }
 
         // ------------------ ELEMENTOS DINÂMICOS DA UI ------------------
-        function addFiscalUI(nome='', ent='', int='', sai='') {
+        function periodoFiscal(ent, periodo) {
+            return periodo === 'manha' || periodo === 'tarde_noite' ? periodo : (Number.parseInt(ent,10) < 11 ? 'manha' : 'tarde_noite');
+        }
+        function serializarFiscal(f) {
+            const campo=valor=>String(valor||'').trim()||' ';
+            return `${f.nome}|${campo(f.ent)}|${campo(f.int)}|${campo(f.sai)}|${periodoFiscal(f.ent,f.periodo)}`;
+        }
+        function addFiscalUI(nome='', ent='', int='', sai='', periodo='') {
             const id = `fisc_${contFisc++}`;
             const cont = document.getElementById('containerFiscais');
             if (!cont) return;
             cont.insertAdjacentHTML('beforeend', `
-                <div id="${id}" class="sortable-row" style="display:grid; grid-template-columns: auto 2fr 1fr 1fr 1fr auto; gap:6px; align-items:center;">
+                <div id="${id}" class="sortable-row" style="display:grid; grid-template-columns: auto 2fr 1fr 1fr 1fr 1.4fr auto; gap:6px; align-items:center;">
                     <div style="display:flex; flex-direction:column; gap:2px;">
                         <button type="button" class="btn-order" onclick="moveRow(this, -1)">▲</button>
                         <button type="button" class="btn-order" onclick="moveRow(this, 1)">▼</button>
@@ -2085,6 +2233,7 @@
                     <input type="text" class="fiscal-ent" placeholder="Ent" value="${escapeHTML(ent)}" oninput="salvarRascunhoFormularioDebounced()">
                     <input type="text" class="fiscal-int" placeholder="Int" value="${escapeHTML(int)}" oninput="salvarRascunhoFormularioDebounced()">
                     <input type="text" class="fiscal-sai" placeholder="Sai" value="${escapeHTML(sai)}" oninput="salvarRascunhoFormularioDebounced()">
+                    <select class="fiscal-periodo" aria-label="Período do fiscal" onchange="salvarRascunhoFormularioDebounced()"><option value="manha" ${periodoFiscal(ent,periodo)==='manha'?'selected':''}>Manhã</option><option value="tarde_noite" ${periodoFiscal(ent,periodo)==='tarde_noite'?'selected':''}>Tarde/noite</option></select>
                     <button type="button" class="btn-danger" onclick="document.getElementById('${id}').remove(); atualizarOpcoesDropdown(); salvarRascunhoFormularioDebounced();">X</button>
                 </div>
             `);
@@ -2437,8 +2586,8 @@
             }).join('');
             let fiscManha=0,fiscNoite=0;
             const fiscais = String(dados.fiscais || '').split('||').filter(Boolean).map(item => {
-                const [nome,ent='',int='',sai=''] = item.split('|');
-                if (Number.parseInt(ent,10) < 12) fiscManha++; else fiscNoite++;
+                const [nome,ent='',int='',sai='',periodo=''] = item.split('|').map(v=>v.trim());
+                if (periodoFiscal(ent,periodo) === 'manha') fiscManha++; else fiscNoite++;
                 return `<tr style="color:${safeColor(getColor(nome))}"><td><strong>${escapeHTML(nome.toUpperCase())}</strong></td><td>${escapeHTML(ent)}</td><td>${escapeHTML(int)}</td><td>${escapeHTML(sai)}</td></tr>`;
             }).join('');
             let obs = dados.observacoes || '',cor = '#000000';
@@ -2456,8 +2605,8 @@
                 <div class="sheet-heading">ESCALA DE TRABALHO — ${escapeHTML(formatarDataBR(dados.data_escala))} (${escapeHTML(getNomeDiaSemana(dados.data_escala))})</div>
                 <div class="sheet-layout"><div class="sheet-main">${shifts}${fiscaisBlock}</div>
                 <table class="extbl sheet-aside"><tbody class="sheet-aside-block"><tr><th class="exhdr">QUANTIDADE DE CAIXAS</th></tr><tr><td>${cxManha} PELA MANHÃ<br>${cxNoite} PELA TARDE/NOITE</td></tr></tbody><tbody class="sheet-aside-block"><tr><th class="exhdr">QUANTIDADE DE FISCAIS</th></tr><tr><td>${fiscManha} PELA MANHÃ<br>${fiscNoite} PELA TARDE/NOITE</td></tr></tbody><tbody class="sheet-aside-block"><tr><th class="exhdr">FOLGAS</th></tr><tr><td>${nomesUnicos(dados.folgas).map(n=>escapeHTML(n.toUpperCase())).join('<br>') || '-'}</td></tr></tbody></table></div></div>
-                ${extras ? `<div class="sheet-extras">${extras}</div>` : ''}
-                ${obs ? `<div class="sheet-observation-spacer" aria-hidden="true"></div><div class="sheet-observacoes" style="color:${safeColor(cor)}"><strong>OBSERVAÇÕES:</strong> ${escapeHTML(obs)}</div>` : ''}</div></section>`;
+                ${obs ? `<div class="sheet-observacoes" style="color:${safeColor(cor)}"><strong>OBSERVAÇÕES:</strong> ${escapeHTML(obs)}</div>` : ''}
+                ${extras ? `<div class="sheet-extras">${extras}</div>` : ''}</div></section>`;
         }
 
         // ------------------ GERENCIAMENTO DE CONFIGURAÇÕES DE TURNOS E TABELAS EXTRAS NA UI ------------------
@@ -2656,7 +2805,8 @@
                 const e = div.querySelector('.fiscal-ent')?.value.trim() || '';
                 const i = div.querySelector('.fiscal-int')?.value.trim() || ''; 
                 const s = div.querySelector('.fiscal-sai')?.value.trim() || '';
-                if (n) fisc.push(`${n}|${e}|${i}|${s}`);
+                const periodo = div.querySelector('.fiscal-periodo')?.value || periodoFiscal(e);
+                if (n) fisc.push(serializarFiscal({nome:n,ent:e,int:i,sai:s,periodo}));
             });
             const fiscInput = document.getElementById('fiscais');
             if (fiscInput) fiscInput.value = fisc.join('||');
@@ -2838,7 +2988,7 @@
                 if (d.fiscais) { 
                     d.fiscais.split('||').forEach(f => { 
                         const p = f.split('|'); 
-                        addFiscalUI(p[0], p[1], p[2], p[3]); 
+                        addFiscalUI(p[0], p[1], p[2], p[3], p[4]);
                     }); 
                 }
             }

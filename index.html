@@ -141,12 +141,20 @@
 <body>
     <h1 class="sr-only">Gerenciador de Escalas</h1>
     <div class="print-block-message">IMPRESSÃO BLOQUEADA — A escala não foi salva e confirmada. Volte ao sistema, salve ou atualize a consulta antes de imprimir.</div>
-    <div id="acessoEquipe" class="card print-hide" hidden>
-        <h2>Acesso da equipe</h2>
-        <label for="codigoAcesso">Código de acesso</label>
-        <input id="codigoAcesso" type="password" autocomplete="off" placeholder="Informe o código da equipe">
-        <button id="btnEntrar" type="button" class="btn-action" onclick="entrarEquipe()">Entrar</button>
-        <p id="statusAcesso" role="status" aria-live="polite"></p>
+    <div id="acessoEquipe" class="access-screen print-hide">
+        <form class="card access-panel" onsubmit="entrarEquipe(event)">
+            <h2>Entrar no sistema de escalas</h2>
+            <p>Use a senha compartilhada da equipe.</p>
+            <label for="codigoAcesso">Senha da equipe</label>
+            <input id="codigoAcesso" type="password" autocomplete="current-password" required placeholder="Digite a senha">
+            <label class="access-remember"><input id="lembrarAcesso" type="checkbox" checked> Manter conectado neste aparelho</label>
+            <button id="btnEntrar" type="submit" class="btn-action">Entrar</button>
+            <p id="statusAcesso" role="status" aria-live="polite"></p>
+        </form>
+    </div>
+    <div id="barraSessao" class="session-bar print-hide" hidden>
+        <span>Acesso da equipe ativo neste navegador</span>
+        <button type="button" class="btn-action" onclick="sairEquipe()">Sair deste aparelho</button>
     </div>
     <div id="statusSalvamento" class="save-status print-hide" data-estado="pendente" role="status" aria-live="polite">
         <strong data-status-text>Preencha a escala. A impressão será liberada após salvar e confirmar.</strong>
@@ -592,7 +600,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="app-reliability.js?v=20261017-save-conflict-fix"></script>
+    <script src="app-reliability.js?v=20261017-remember-login"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
         // =========================================================================
@@ -2927,8 +2935,12 @@
             if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) atualizarStatusSalvamento('erro','Não foi possível carregar a base do servidor. Confira acesso e conexão; o rascunho foi mantido.');
             restaurarAbaSalva();
         }
-        if (tokenAcesso()) inicializarAplicacao().catch(e => {
+        if (tokenAcesso()) inicializarAplicacao().then(() => {
+            if (estadoEscala.configCarregada && estadoEscala.funcionariosCarregados) ocultarAcesso();
+            else mostrarAcesso('Não foi possível carregar os dados. Confira sua conexão ou entre novamente.');
+        }).catch(e => {
             estadoEscala.inicializando = false;
+            mostrarAcesso(`Não foi possível iniciar. ${e.message}`);
             atualizarStatusSalvamento('erro', `Não foi possível iniciar. ${e.message}`);
         });
         else mostrarAcesso();

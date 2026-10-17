@@ -42,7 +42,15 @@ function nomesUnicos(value) {
 function lerLocal(key) { try { return localStorage.getItem(key); } catch { return null; } }
 function gravarLocal(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } }
 function removerLocal(key) { try { localStorage.removeItem(key); } catch { /* Mantém a aplicação utilizável. */ } }
-function tokenAcesso() { try { return sessionStorage.getItem('escala_access_token') || ''; } catch { return ''; } }
+const CHAVE_ACESSO = 'escala_access_token';
+function tokenAcesso() {
+    try { return sessionStorage.getItem(CHAVE_ACESSO) || lerLocal(CHAVE_ACESSO) || ''; }
+    catch { return lerLocal(CHAVE_ACESSO) || ''; }
+}
+function limparAcesso() {
+    try { sessionStorage.removeItem(CHAVE_ACESSO); } catch { /* Pode estar indisponível no navegador. */ }
+    removerLocal(CHAVE_ACESSO);
+}
 
 async function fetchAPI(url, options = {}) {
     const controller = new AbortController();
@@ -50,7 +58,7 @@ async function fetchAPI(url, options = {}) {
     try {
         const response = await fetch(url, {...options, cache:'no-store', signal:controller.signal,
             headers:{...options.headers, ...(tokenAcesso() ? {'X-Escala-Token':tokenAcesso()} : {})}});
-        if (response.status === 401 || response.status === 403) mostrarAcesso();
+        if (response.status === 401 || response.status === 403) invalidarAcesso();
         return response;
     } finally { clearTimeout(timer); }
 }
@@ -65,7 +73,7 @@ async function requestJSON(url, options = {}, timeout = REQUEST_TIMEOUT_MS) {
                 ...(tokenAcesso() ? {'X-Escala-Token':tokenAcesso()} : {}), ...options.headers }
         });
         if (!response.ok) {
-            if (response.status === 401 || response.status === 403) mostrarAcesso();
+            if (response.status === 401 || response.status === 403) invalidarAcesso();
             let message = `Servidor respondeu com erro (${response.status}).`;
             try { const body = await response.json(); if (body.mensagem) message = body.mensagem; } catch {}
             const error = new Error(message);
@@ -80,23 +88,54 @@ async function requestJSON(url, options = {}, timeout = REQUEST_TIMEOUT_MS) {
     } finally { clearTimeout(timer); }
 }
 
-function mostrarAcesso() {
+function mostrarAcesso(message = '') {
     const card = document.getElementById('acessoEquipe');
     if (card) card.hidden = false;
+    document.getElementById('barraSessao').hidden = true;
+    if (message) document.getElementById('statusAcesso').textContent = message;
 }
-async function entrarEquipe() {
+function ocultarAcesso() {
+    document.getElementById('acessoEquipe').hidden = true;
+    const bar = document.getElementById('barraSessao');
+    bar.querySelector('span').textContent = lerLocal(CHAVE_ACESSO) ? 'Acesso lembrado neste navegador' : 'Acesso ativo apenas nesta sessão';
+    bar.hidden = false;
+}
+function invalidarAcesso() {
+    limparAcesso();
+    mostrarAcesso('A senha salva não foi aceita. Entre novamente.');
+}
+function sairEquipe() {
+    if (estadoEscala.pendente) salvarRascunhoFormulario();
+    limparAcesso();
+    window.location.reload();
+}
+async function entrarEquipe(event) {
+    event?.preventDefault();
     const input = document.getElementById('codigoAcesso');
     const button = document.getElementById('btnEntrar');
     const status = document.getElementById('statusAcesso');
-    if (!input.value.trim()) { status.textContent = 'Informe o código de acesso da equipe.'; return; }
+    if (!input.value.trim()) { status.textContent = 'Informe a senha da equipe.'; return; }
+    status.textContent = 'Verificando a senha…';
     button.disabled = true;
     try {
-        sessionStorage.setItem('escala_access_token', input.value.trim());
-        await requestJSON(N8N_GET_CONFIG);
+        sessionStorage.setItem(CHAVE_ACESSO, input.value.trim());
+        const result = await requestJSON(N8N_GET_CONFIG);
+        if (!Array.isArray(result)) throw new Error('O servidor não confirmou o acesso.');
+        const lembrar = document.getElementById('lembrarAcesso').checked;
+        if (lembrar) {
+            if (!gravarLocal(CHAVE_ACESSO, input.value.trim())) status.textContent = 'Acesso aceito, mas este navegador não permitiu lembrar a senha.';
+            else status.textContent = '';
+        } else { removerLocal(CHAVE_ACESSO); status.textContent = ''; }
         input.value = '';
-        document.getElementById('acessoEquipe').hidden = true;
-        await inicializarAplicacao();
-    } catch (e) { status.textContent = `Não foi possível entrar. ${e.message}`; }
+    } catch (e) {
+        limparAcesso();
+        status.textContent = `Não foi possível entrar. ${e.message}`;
+        button.disabled = false;
+        return;
+    }
+    ocultarAcesso();
+    try { await inicializarAplicacao(); }
+    catch (e) { atualizarStatusSalvamento('erro', `Não foi possível iniciar. ${e.message}`); }
     finally { button.disabled = false; }
 }
 

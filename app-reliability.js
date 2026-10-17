@@ -3,7 +3,7 @@ const estadoEscala = {
     pendente: false, salvando: false, inicializando: true, rascunhoSeguro: false,
     versaoBase: null, dataBase: null, requisicaoPendente: null, erro: false,
     consultas: {}, dadosExibidos: new Map(), configCarregada: false, funcionariosCarregados: false,
-    dataFormulario: null
+    dataFormulario: null, rascunhoBanco: false, rascunhoErro: false
 };
 const REQUEST_TIMEOUT_MS = 15000;
 
@@ -103,8 +103,9 @@ function atualizarStatusSalvamento(kind, message) {
     if (!box) return;
     box.dataset.estado = kind;
     box.querySelector('[data-status-text]').textContent = message;
-    document.getElementById('btnTentarNovamente').hidden = kind !== 'erro';
-    document.getElementById('btnExportarRascunho').hidden = !estadoEscala.pendente;
+    document.getElementById('btnTentarNovamente').hidden = kind !== 'erro' || estadoEscala.rascunhoErro;
+    const draftButton = document.getElementById('btnSalvarRascunhoBanco');
+    if (draftButton) draftButton.hidden = !estadoEscala.pendente || estadoEscala.salvando;
     const date = document.getElementById('data_escala')?.value;
     document.querySelectorAll('[data-escala-data]').forEach(el => {
         const stale = estadoEscala.pendente && el.dataset.escalaData === date;
@@ -124,19 +125,10 @@ function registrarRascunhoSalvo(ok) {
     estadoEscala.rascunhoSeguro = ok;
     if (estadoEscala.pendente && !estadoEscala.salvando && !estadoEscala.erro) {
         atualizarStatusSalvamento(ok ? 'pendente' : 'erro', ok
-            ? 'NÃO SALVO no servidor · Rascunho guardado neste navegador. Salve antes de imprimir.'
-            : 'NÃO SALVO · Não foi possível guardar o rascunho neste navegador. Baixe uma cópia para não perder o trabalho.');
+            ? 'Escala final NÃO SALVA · rascunho local protegido; sincronizando com o banco. Salve e confirme antes de imprimir.'
+            : 'Escala final NÃO SALVA · falhou até a proteção local. Tente salvar novamente e não feche esta página.');
     }
 }
-function exportarRascunho() {
-    salvarRascunhoFormulario();
-    const data = document.getElementById('data_escala').value;
-    const draft = lerLocal(`escala_rascunho_${data}`) || JSON.stringify(coletarPayloadEscala());
-    const url = URL.createObjectURL(new Blob([draft], {type:'application/json'}));
-    const link = document.createElement('a'); link.href = url; link.download = `rascunho-escala-${data}.json`;
-    link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 function camposAlocacao() {
     return [...turnosConfig.map(t => document.getElementById(`turno_${t.id}`)), document.getElementById('folgas'),
         ...document.querySelectorAll('#escalaForm .fiscal-nome, #escalaForm .linha-tbl-extra select')].filter(Boolean);
@@ -259,16 +251,19 @@ async function salvarEscalaConfiavel(event) {
         estadoEscala.pendente = false; estadoEscala.erro = false;
         estadoEscala.versaoBase = saved.ultima_atualizacao; estadoEscala.dataBase = data;
         estadoEscala.requisicaoPendente = null;
+        let avisoRascunho='';
+        try { const result=await requestJSON(N8N_DELETE_DRAFT,{method:'POST',body:JSON.stringify({data_escala:data})}); if(result.status!=='ok') throw new Error('O banco não confirmou a exclusão.'); estadoEscala.rascunhoBanco=false; }
+        catch(e) { console.warn('[Rascunho] Escala confirmada, mas rascunho não foi removido do banco:',e); avisoRascunho=' O rascunho compartilhado antigo não foi excluído; toque em “Limpar Tudo e Recomeçar” para removê-lo.'; }
         modoEdicao = true;
         removerLocal('escala_rascunho_temp'); removerLocal('escala_edicao_temp'); removerLocal(`escala_rascunho_${data}`);
         document.getElementById('data_busca').value = data;
         exibirEscalaConfirmada(document.getElementById('historicoContainer'), saved);
         if (data === getHojeISO()) exibirEscalaConfirmada(document.getElementById('escalaHojeContainer'), saved);
-        atualizarStatusSalvamento('salvo',`SALVO E CONFIRMADO · Escala de ${formatarDataBR(data)}. A impressão está liberada.`);
+        atualizarStatusSalvamento('salvo',`SALVO E CONFIRMADO · Escala de ${formatarDataBR(data)}. A impressão está liberada.${avisoRascunho}`);
         openTab('historico', false);
     } catch (error) {
         estadoEscala.erro = true;
-        atualizarStatusSalvamento('erro',`NÃO SALVO/CONFIRMADO. ${error.message} ${estadoEscala.rascunhoSeguro ? 'Rascunho preservado neste navegador.' : 'Baixe uma cópia do rascunho para não perder o trabalho.'}`);
+        atualizarStatusSalvamento('erro',`NÃO SALVO/CONFIRMADO. ${error.message} ${estadoEscala.rascunhoSeguro ? 'Rascunho preservado localmente e será sincronizado com o banco.' : 'Falhou também a proteção local; não feche esta página.'}`);
     } finally {
         form.inert = false; estadoEscala.salvando = false;
         document.querySelector('.tabs').inert = false;

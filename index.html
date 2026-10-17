@@ -151,7 +151,7 @@
         <strong data-status-text>Preencha a escala. A impressão será liberada após salvar e confirmar.</strong>
         <div class="status-actions">
             <button id="btnTentarNovamente" type="button" class="btn-action" hidden onclick="salvarEscalaConfiavel()">Tentar salvar novamente</button>
-            <button id="btnExportarRascunho" type="button" class="btn-action" hidden onclick="exportarRascunho()">Baixar cópia do rascunho</button>
+            <button id="btnSalvarRascunhoBanco" type="button" class="btn-action" hidden onclick="salvarRascunhoBancoManual()">Salvar rascunho no banco</button>
         </div>
     </div>
 
@@ -469,6 +469,7 @@
             <div class="sticky-top-bar">
                 <h2 style="margin:0;">⚙️ Regras de Negócio e Dinâmicas</h2>
                 <button class="btn-main" onclick="salvarConfiguracoes()" style="background:#0f766e; width:auto; margin:0;">💾 Salvar Configurações Globais</button>
+                <button type="button" class="btn-action" onclick="recuperarConfiguracoesSalvas()" style="width:auto; margin:0;">↩️ Recuperar padrões salvos</button>
             </div>
 
             <!-- BLOCO DESATIVADO TEMPORARIAMENTE (OPACO E SEM CLIQUES) -->
@@ -693,6 +694,9 @@
         const N8N_DEL_FUNC     = 'https://n8n.orbbotia.com/webhook/excluir-funcionario'; 
         const N8N_GET_CONFIG   = 'https://n8n.orbbotia.com/webhook/buscar-configuracoes';
         const N8N_POST_CONFIG  = 'https://n8n.orbbotia.com/webhook/salvar-configuracoes';
+        const N8N_GET_DRAFT    = 'https://n8n.orbbotia.com/webhook/buscar-rascunho';
+        const N8N_POST_DRAFT   = 'https://n8n.orbbotia.com/webhook/salvar-rascunho';
+        const N8N_DELETE_DRAFT = 'https://n8n.orbbotia.com/webhook/excluir-rascunho';
 
         // =========================================================================
         // COMUNICAÇÃO COM O BACKEND (FETCH & WEBHOOKS)
@@ -893,6 +897,30 @@
             } catch (e) {
                 alert(`Configurações NÃO SALVAS/CONFIRMADAS no servidor. ${e.message} A cópia local foi mantida; tente salvar novamente.`);
             }
+        }
+
+        async function recuperarConfiguracoesSalvas() {
+            if (!confirm('Substituir as configurações que estão na tela pelos padrões salvos no banco?')) return;
+            const button = document.querySelector('[onclick="recuperarConfiguracoesSalvas()"]');
+            if (button) button.disabled = true;
+            try {
+                const response = await requestJSON(N8N_GET_CONFIG);
+                const saved = Array.isArray(response) ? response[0] : response;
+                if (!saved?.id) throw new Error('Não há padrões salvos no banco.');
+                const keys = ['cfg_turnos','cfg_tabelas_extras','cfg_fiscais_padrao','cfg_excecoes_padrao'];
+                const values = Object.fromEntries(keys.map(key => [key, parseJSONField(saved[key], null)]));
+                if (keys.some(key => !Array.isArray(values[key]))) throw new Error('O banco retornou padrões incompletos.');
+                validarLayout({turnos:values.cfg_turnos,tabelas:values.cfg_tabelas_extras});
+                turnosConfig=values.cfg_turnos; tabelasExtrasConfig=values.cfg_tabelas_extras;
+                fiscaisPadraoConfig=values.cfg_fiscais_padrao; excecoesPadraoConfig=values.cfg_excecoes_padrao;
+                alertasConfig={...alertasConfig,...parseJSONField(saved.cfg_alertas,{})};
+                for (const [key,value] of Object.entries({cfg_turnos_dinamicos:turnosConfig,cfg_tabelas_extras_dinamicas:tabelasExtrasConfig,cfg_fiscais_padrao:fiscaisPadraoConfig,cfg_excecoes_padrao:excecoesPadraoConfig,cfg_alertas_individuais:alertasConfig})) gravarLocal(key,JSON.stringify(value));
+                for (const [key,value] of Object.entries({modoLimite:saved.modo_limite,maxFolgantes:saved.max_folgantes,travaEstrita:saved.trava_estrita,c1:saved.cor_primaria,c2:saved.cor_secundaria,c3:saved.cor_alerta})) if(value!=null) gravarLocal(key,String(value));
+                estadoEscala.configCarregada=true;
+                await carregarConfiguracoes();
+                alert('Padrões recuperados do banco.');
+            } catch(e) { alert(`Não foi possível recuperar os padrões salvos. ${e.message}`); }
+            finally { if(button) button.disabled=false; }
         }
 
         /**
@@ -1102,6 +1130,7 @@
             const ok = gravarLocal(key, content);
             gravarLocal(`escala_rascunho_${dtEscala}`, content);
             registrarRascunhoSalvo(ok);
+            if (ok && !estadoEscala.inicializando && !estadoEscala.salvando && tokenAcesso()) agendarSincronizacaoRascunho(dtEscala, rascunhoObj);
         }
 
         /**
@@ -1109,6 +1138,80 @@
          */
         const gravarRascunhoDebounced = debounce(salvarRascunhoFormulario, 300);
         const salvarRascunhoFormularioDebounced = () => { marcarAlteracao(); gravarRascunhoDebounced(); };
+
+        let timerRascunhoBanco = null;
+        let versaoRascunhoBanco = 0;
+        let dataRascunhoRestaurando = null;
+        function agendarSincronizacaoRascunho(data, payload) {
+            clearTimeout(timerRascunhoBanco);
+            const versao = ++versaoRascunhoBanco;
+            timerRascunhoBanco = setTimeout(() => sincronizarRascunhoBanco(data,payload,versao), 850);
+        }
+        async function sincronizarRascunhoBanco(data, payload, versao=versaoRascunhoBanco) {
+            if (!payload || data !== document.getElementById('data_escala').value) return false;
+            try {
+                const result = await requestJSON(N8N_POST_DRAFT,{method:'POST',body:JSON.stringify({data_escala:data,payload})});
+                if (versao !== versaoRascunhoBanco || data !== document.getElementById('data_escala').value) return false;
+                if (result.status !== 'ok' || result.saved?.data_escala?.split('T')[0] !== data) throw new Error('O banco não confirmou este rascunho.');
+                estadoEscala.rascunhoBanco = true;
+                estadoEscala.rascunhoErro = false;
+                registrarRascunhoSalvo(true);
+                if (!estadoEscala.salvando && estadoEscala.pendente) atualizarStatusSalvamento('pendente','Rascunho salvo no banco · escala final ainda NÃO salva. Salve e confirme antes de imprimir.');
+                return true;
+            } catch(e) {
+                if (versao === versaoRascunhoBanco && data === document.getElementById('data_escala').value) {
+                    estadoEscala.rascunhoBanco = false;
+                    estadoEscala.rascunhoErro = true;
+                    atualizarStatusSalvamento('erro',`Rascunho NÃO sincronizado com o banco. ${e.message} Está protegido neste navegador; toque em “Salvar rascunho no banco” para tentar novamente.`);
+                }
+                return false;
+            }
+        }
+        async function salvarRascunhoBancoManual() {
+            gravarRascunhoDebounced.cancel(); salvarRascunhoFormulario();
+            const data=document.getElementById('data_escala').value;
+            const payload=parseJSONField(lerLocal(`escala_rascunho_${data}`),null);
+            if (!payload) { atualizarStatusSalvamento('erro','Rascunho local indisponível; confira os dados antes de continuar.'); return; }
+            clearTimeout(timerRascunhoBanco);
+            const button=document.getElementById('btnSalvarRascunhoBanco'); button.disabled=true; button.textContent='Salvando rascunho…';
+            const ok=await sincronizarRascunhoBanco(data,payload,++versaoRascunhoBanco);
+            button.disabled=false; button.textContent='Salvar rascunho no banco';
+            if (ok) alert('Rascunho salvo no banco da equipe. A escala final continua pendente e não pode ser impressa.');
+        }
+        async function recuperarRascunhoBanco(data, {force=false}={}) {
+            if (!data || dataRascunhoRestaurando===data || !tokenAcesso()) return false;
+            dataRascunhoRestaurando=data;
+            try {
+                const result=await requestJSON(`${N8N_GET_DRAFT}?data=${encodeURIComponent(data)}`);
+                if (document.getElementById('data_escala').value!==data) return false;
+                if (result.status==='vazio' || !result.payload) return false;
+                const remote=result.payload;
+                if (remote.data_escala!==data || !remote.json_layout || !Array.isArray(remote.json_layout.turnos) || !Array.isArray(remote.json_layout.tabelas)) throw new Error('Rascunho do banco inválido.');
+                const local=parseJSONField(lerLocal(`escala_rascunho_${data}`),null);
+                if (!force && local && Date.parse(local.atualizadoEm||0)>Date.parse(result.updated_at||0)) {
+                    await sincronizarRascunhoBanco(data,local,++versaoRascunhoBanco); return false;
+                }
+                if (!force && !estadoEscala.inicializando && estadoEscala.pendente && local) return false;
+                gravarLocal('escala_rascunho_temp',JSON.stringify(remote));
+                removerLocal('escala_edicao_temp');
+                if (estadoEscala.inicializando && remote.json_layout) {
+                    validarLayout(remote.json_layout);
+                    turnosConfig=remote.json_layout.turnos; tabelasExtrasConfig=remote.json_layout.tabelas;
+                    gerarCamposFormularioEscala();
+                }
+                carregarRascunhoFormulario();
+                estadoEscala.rascunhoBanco=true;
+                estadoEscala.rascunhoErro=false;
+                if (!estadoEscala.inicializando) {
+                    marcarAlteracao(); atualizarStatusSalvamento('pendente','Rascunho da equipe recuperado do banco · ainda NÃO é uma escala salva. Revise antes de confirmar ou imprimir.');
+                }
+                return true;
+            } catch(e) {
+                estadoEscala.rascunhoErro=true;
+                atualizarStatusSalvamento('erro',`Não foi possível consultar o rascunho compartilhado. ${e.message} ${estadoEscala.pendente?'A cópia local continua disponível; use a ação de salvar rascunho para tentar sincronizar.':'Não foi possível verificar se há rascunho no banco.'}`);
+                return false;
+            } finally { dataRascunhoRestaurando=null; }
+        }
 
         /**
          * Restaura os dados do rascunho do localStorage para o formulário.
@@ -1141,6 +1244,7 @@
                 turnosConfig = layout.turnos; tabelasExtrasConfig = layout.tabelas;
                 gerarCamposFormularioEscala();
             }
+            if (rascunho.data_escala && rascunho.data_escala !== document.getElementById('data_escala').value && !estadoEscala.inicializando) return;
             estadoEscala.pendente = true;
             estadoEscala.versaoBase = rascunho.versaoBase || null;
             estadoEscala.dataBase = rascunho.dataBase || null;
@@ -1241,7 +1345,9 @@
             if (!confirm('Descartar o rascunho desta data e recomeçar?')) return;
             removerLocal(`escala_rascunho_${document.getElementById('data_escala').value}`);
             removerLocal('escala_rascunho_temp'); removerLocal('escala_edicao_temp');
-            estadoEscala.pendente = false; location.reload();
+            estadoEscala.pendente = false;
+            requestJSON(N8N_DELETE_DRAFT,{method:'POST',body:JSON.stringify({data_escala:document.getElementById('data_escala').value})})
+                .then(()=>location.reload()).catch(e=>{alert(`O rascunho local foi descartado, mas o rascunho do banco não foi excluído. ${e.message}`);location.reload();});
         }
 /* </BLOCO_JS_ESTADO_RASCUNHO> */
 
@@ -1280,7 +1386,8 @@
                 carregarRascunhoFormulario();
             }
             atualizarListaFolgantesPrevistos(); atualizarOpcoesDropdown();
-            salvarRascunhoFormularioDebounced();
+            if (draft) salvarRascunhoFormularioDebounced();
+            recuperarRascunhoBanco(data).then(restored=>{ if(!restored&&!draft&&document.getElementById('data_escala').value===data) salvarRascunhoFormularioDebounced(); });
         }
 
         // ------------------ CALENDÁRIO GERAL (OTIMIZADO) ------------------
@@ -2801,8 +2908,9 @@
             if (!document.getElementById('data_escala').value) document.getElementById('data_escala').value = getHojeISO();
             await carregarConfiguracoes();
             await carregarFuncionariosNuvem();
-            if (!estadoEscala.funcionariosCarregados) carregarRascunhoFormulario();
+            if (!estadoEscala.funcionariosCarregados && !lerLocal(`escala_rascunho_${document.getElementById('data_escala').value}`)) carregarRascunhoFormulario();
             estadoEscala.dataFormulario = document.getElementById('data_escala').value;
+            await recuperarRascunhoBanco(estadoEscala.dataFormulario,{force:true});
             estadoEscala.inicializando = false;
             if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) atualizarStatusSalvamento('erro','Não foi possível carregar a base do servidor. Confira acesso e conexão; o rascunho foi mantido.');
             restaurarAbaSalva();

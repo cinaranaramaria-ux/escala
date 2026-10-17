@@ -600,7 +600,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="app-reliability.js?v=20261017-remember-login"></script>
+    <script src="app-reliability.js?v=20261017-login-diagnostics"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
         // =========================================================================
@@ -719,11 +719,14 @@
         /**
          * Carrega as configurações globais do sistema cadastradas no Supabase.
          */
-        async function carregarConfiguracoes() {
+        async function carregarConfiguracoes(dadosIniciais) {
             estadoEscala.configCarregada = false;
             let configObj = null;
             
-            try {
+            if (Array.isArray(dadosIniciais)) {
+                configObj = dadosIniciais[0] || null;
+                estadoEscala.configCarregada = true;
+            } else try {
                 const res = await fetchAPI(N8N_GET_CONFIG);
                 if (res.ok) {
                     const dados = await res.json();
@@ -2916,12 +2919,12 @@
         // =========================================================================
         // INICIALIZAÇÃO E BOOT DO SISTEMA
         // =========================================================================
-        async function inicializarAplicacao() {
+        async function inicializarAplicacao(configuracoesIniciais) {
             estadoEscala.inicializando = true;
             const now = new Date();
             document.getElementById('mes_previsao').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
             if (!document.getElementById('data_escala').value) document.getElementById('data_escala').value = getHojeISO();
-            await Promise.all([carregarConfiguracoes(), carregarFuncionariosNuvem()]);
+            await Promise.all([carregarConfiguracoes(configuracoesIniciais), carregarFuncionariosNuvem()]);
             gerarCamposFormularioEscala();
             carregarRascunhoFormulario();
             if (estadoEscala.funcionariosCarregados) renderizarListaFunc();
@@ -2935,14 +2938,7 @@
             if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) atualizarStatusSalvamento('erro','Não foi possível carregar a base do servidor. Confira acesso e conexão; o rascunho foi mantido.');
             restaurarAbaSalva();
         }
-        if (tokenAcesso()) inicializarAplicacao().then(() => {
-            if (estadoEscala.configCarregada && estadoEscala.funcionariosCarregados) ocultarAcesso();
-            else mostrarAcesso('Não foi possível carregar os dados. Confira sua conexão ou entre novamente.');
-        }).catch(e => {
-            estadoEscala.inicializando = false;
-            mostrarAcesso(`Não foi possível iniciar. ${e.message}`);
-            atualizarStatusSalvamento('erro', `Não foi possível iniciar. ${e.message}`);
-        });
+        if (tokenAcesso()) iniciarComAcessoSalvo();
         else mostrarAcesso();
 
 /* </BLOCO_JS_INIT_EVENTOS> */

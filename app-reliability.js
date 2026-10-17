@@ -104,6 +104,25 @@ function invalidarAcesso() {
     limparAcesso();
     mostrarAcesso('A senha salva não foi aceita. Entre novamente.');
 }
+function mensagemErroAcesso(error) {
+    if (error.httpStatus === 401 || error.httpStatus === 403) {
+        return 'O n8n recusou a senha da equipe. Confira se a credencial Header Auth usa o cabeçalho X-Escala-Token e se o valor é exatamente a senha digitada.';
+    }
+    return `Não foi possível verificar o acesso. ${error.message} Confira a conexão e tente novamente.`;
+}
+async function iniciarComAcessoSalvo() {
+    try {
+        const configuracoes = await requestJSON(N8N_GET_CONFIG);
+        if (!Array.isArray(configuracoes)) throw new Error('O servidor retornou uma resposta inesperada.');
+        await inicializarAplicacao(configuracoes);
+        if (estadoEscala.configCarregada && estadoEscala.funcionariosCarregados) ocultarAcesso();
+        else mostrarAcesso('A senha foi aceita, mas não foi possível carregar os dados. Confira a conexão e recarregue a página.');
+    } catch (error) {
+        estadoEscala.inicializando = false;
+        mostrarAcesso(mensagemErroAcesso(error));
+        atualizarStatusSalvamento('erro', `Não foi possível iniciar. ${error.message}`);
+    }
+}
 function sairEquipe() {
     if (estadoEscala.pendente) salvarRascunhoFormulario();
     limparAcesso();
@@ -117,10 +136,11 @@ async function entrarEquipe(event) {
     if (!input.value.trim()) { status.textContent = 'Informe a senha da equipe.'; return; }
     status.textContent = 'Verificando a senha…';
     button.disabled = true;
+    let configuracoes;
     try {
         sessionStorage.setItem(CHAVE_ACESSO, input.value.trim());
-        const result = await requestJSON(N8N_GET_CONFIG);
-        if (!Array.isArray(result)) throw new Error('O servidor não confirmou o acesso.');
+        configuracoes = await requestJSON(N8N_GET_CONFIG);
+        if (!Array.isArray(configuracoes)) throw new Error('O servidor não confirmou o acesso.');
         const lembrar = document.getElementById('lembrarAcesso').checked;
         if (lembrar) {
             if (!gravarLocal(CHAVE_ACESSO, input.value.trim())) status.textContent = 'Acesso aceito, mas este navegador não permitiu lembrar a senha.';
@@ -129,12 +149,12 @@ async function entrarEquipe(event) {
         input.value = '';
     } catch (e) {
         limparAcesso();
-        status.textContent = `Não foi possível entrar. ${e.message}`;
+        status.textContent = mensagemErroAcesso(e);
         button.disabled = false;
         return;
     }
     ocultarAcesso();
-    try { await inicializarAplicacao(); }
+    try { await inicializarAplicacao(configuracoes); }
     catch (e) { atualizarStatusSalvamento('erro', `Não foi possível iniciar. ${e.message}`); }
     finally { button.disabled = false; }
 }

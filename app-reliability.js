@@ -262,7 +262,6 @@ async function salvarEscalaConfiavel(event) {
         removerLocal('escala_rascunho_temp'); removerLocal('escala_edicao_temp'); removerLocal(`escala_rascunho_${data}`);
         document.getElementById('data_busca').value = data;
         exibirEscalaConfirmada(document.getElementById('historicoContainer'), saved);
-        if (data === getHojeISO()) exibirEscalaConfirmada(document.getElementById('escalaHojeContainer'), saved);
         atualizarStatusSalvamento('salvo',`SALVO E CONFIRMADO · Escala de ${formatarDataBR(data)}. A impressão está liberada.${avisoRascunho}`);
         openTab('historico', false);
     } catch (error) {
@@ -345,7 +344,7 @@ function podeImprimir(row) {
 }
 async function imprimirEscalaAtual() {
     const tab = document.querySelector('.tab-content.active')?.id;
-    const id = tab === 'vigente' ? 'escalaHojeContainer' : tab === 'historico' ? 'historicoContainer' : null;
+    const id = tab === 'historico' ? 'historicoContainer' : null;
     if (!id) { if (tab === 'ausencias') window.print(); return; }
     const row = estadoEscala.dadosExibidos.get(id);
     if (!row || !podeImprimir(row)) { alert('Impressão bloqueada: salve e confirme as alterações ou atualize a consulta antes de imprimir.'); return; }
@@ -362,7 +361,7 @@ async function imprimirEscalaAtual() {
 }
 window.addEventListener('beforeprint', () => {
     const tab = document.querySelector('.tab-content.active')?.id;
-    const id = tab === 'vigente' ? 'escalaHojeContainer' : tab === 'historico' ? 'historicoContainer' : null;
+    const id = tab === 'historico' ? 'historicoContainer' : null;
     const row = id && estadoEscala.dadosExibidos.get(id);
     document.body.classList.toggle('impressao-bloqueada', tab !== 'ausencias' && (!row || !podeImprimir(row)));
 });

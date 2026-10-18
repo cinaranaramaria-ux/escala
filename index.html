@@ -136,7 +136,7 @@
     </style>
 <!-- </BLOCO_CSS_ESTILOS> -->
 
-<link rel="stylesheet" href="escala.css?v=20261017-bold-pdf">
+<link rel="stylesheet" href="escala.css?v=20261017-consulta-unificada">
 </head>
 <body>
     <h1 class="sr-only">Gerenciador de Escalas</h1>
@@ -155,20 +155,18 @@
     <!-- Navegação adaptada: abas no desktop e seletor no celular. -->
     <label class="mobile-nav-label print-hide" for="mobileNavSelect">Ir para tela</label>
     <select id="mobileNavSelect" class="mobile-nav-select print-hide" aria-label="Ir para tela" onchange="openTab(this.value)">
+        <option value="historico">📅 Consultar Escalas</option>
         <option value="cadastrar">📝 Lançar Escala</option>
         <option value="previsao">📆 Calendário e Previsão</option>
         <option value="ausencias">📋 Relatório de Ausências</option>
-        <option value="vigente">📅 Escala de Hoje</option>
-        <option value="historico">🔍 Histórico</option>
         <option value="funcionarios">👥 Base/Regras</option>
         <option value="configuracoes">⚙️ Regras de Negócio</option>
     </select>
     <nav class="tabs print-hide" aria-label="Seções do sistema">
-        <button class="tab-btn active" data-tab="cadastrar" aria-current="page" onclick="openTab('cadastrar')">📝 Lançar Escala</button>
+        <button class="tab-btn active" data-tab="historico" aria-current="page" onclick="openTab('historico')">📅 Consultar Escalas</button>
+        <button class="tab-btn" data-tab="cadastrar" onclick="openTab('cadastrar')">📝 Lançar Escala</button>
         <button class="tab-btn" data-tab="previsao" onclick="openTab('previsao')">📆 Calendário e Previsão</button>
         <button class="tab-btn" data-tab="ausencias" onclick="openTab('ausencias')">📋 Relatório de Ausências</button>
-        <button class="tab-btn" data-tab="vigente" onclick="openTab('vigente')">📅 Escala de Hoje</button>
-        <button class="tab-btn" data-tab="historico" onclick="openTab('historico')">🔍 Histórico</button>
         <button class="tab-btn" data-tab="funcionarios" onclick="openTab('funcionarios')">👥 Base/Regras</button>
         <button class="tab-btn" data-tab="configuracoes" onclick="openTab('configuracoes')">⚙️ Regras de Negócio</button>
     </nav>
@@ -223,7 +221,7 @@
     </div>
 
     <!-- ABA 2: FORMULÁRIO LANÇAMENTO DA ESCALA -->
-    <div id="cadastrar" class="tab-content active print-hide">
+    <div id="cadastrar" class="tab-content print-hide">
         <div class="card" style="padding-bottom: 1px;">
             <div class="sticky-top-bar">
                 <h2 style="margin:0;" id="tituloFormLancemento">Lançamento da Escala</h2>
@@ -353,27 +351,20 @@
         </div>
     </div>
 
-    <!-- ABA 4: ESCALA DE HOJE -->
-    <div id="vigente" class="tab-content">
-        <div class="card" id="areaImpressaoHoje">
-            <div class="print-hide" style="margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn-action" onclick="carregarEscalaHoje()">🔄 Atualizar</button>
-                <button class="btn-action" style="background:#2563eb;" onclick="imprimirEscalaAtual()">🖨️ Imprimir PDF</button>
-            </div>
-            <div id="escalaHojeContainer">Clique no botão para carregar a escala de hoje.</div>
-        </div>
-    </div>
-
-    <!-- ABA 5: HISTÓRICO -->
-    <div id="historico" class="tab-content">
+    <!-- CONSULTA: HOJE E OUTRAS DATAS -->
+    <div id="historico" class="tab-content active">
         <div class="card">
-            <h3 class="print-hide">Consultar Escalas Anteriores</h3>
-            <div class="print-hide" style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
-                <input type="date" id="data_busca" style="width: auto; flex-grow: 1;">
-                <button class="btn-action" onclick="buscarHistorico()">Buscar</button>
-                <button class="btn-action" style="background:#2563eb;" onclick="imprimirEscalaAtual()">🖨️ PDF</button>
+            <h2 class="print-hide">Consultar Escalas</h2>
+            <div class="consultation-toolbar print-hide">
+                <label class="consultation-date" for="data_busca">Data da escala
+                    <input type="date" id="data_busca" onchange="buscarHistorico()">
+                </label>
+                <button type="button" class="btn-action consultation-secondary" onclick="consultarEscalaHoje()">Hoje</button>
+                <button type="button" class="btn-action consultation-secondary" onclick="buscarHistorico()">🔄 Atualizar</button>
+                <button type="button" class="btn-action consultation-launch" onclick="openTab('cadastrar')">📝 Lançar escala</button>
+                <button type="button" class="btn-action consultation-print" onclick="imprimirEscalaAtual()">🖨️ Imprimir PDF</button>
             </div>
-            <div id="historicoContainer">Selecione uma data para consultar.</div>
+            <div id="historicoContainer">Consultando a escala de hoje…</div>
         </div>
     </div>
 
@@ -2781,13 +2772,14 @@
 
             gravarLocal('abaAtivaEscalas', id);
 
-            if (id === 'vigente' && consultar) carregarEscalaHoje();
+            if (id === 'historico' && consultar) buscarHistorico();
             if (id === 'previsao') renderizarCalendario();
             if (id === 'ausencias') renderizarRelatorioAusencias();
         }
 
         function restaurarAbaSalva() {
-            const abaSalva = lerLocal('abaAtivaEscalas') || 'cadastrar';
+            const salva = lerLocal('abaAtivaEscalas');
+            const abaSalva = salva === 'vigente' ? 'historico' : salva && document.getElementById(salva)?.classList.contains('tab-content') ? salva : 'historico';
             openTab(abaSalva);
         }
 /* </BLOCO_JS_UI_COMPONENTES> */
@@ -2911,10 +2903,11 @@
         }
 
         // =========================================================================
-        // CONSULTAS DE HISTÓRICO E ESCALA DE HOJE
+        // CONSULTA DE ESCALAS POR DATA
         // =========================================================================
-        async function carregarEscalaHoje() {
-            await carregarEscalaContainer('escalaHojeContainer',getHojeISO());
+        async function consultarEscalaHoje() {
+            document.getElementById('data_busca').value = getHojeISO();
+            await buscarHistorico();
         }
 
         async function buscarHistorico() {
@@ -3057,6 +3050,7 @@
             estadoEscala.inicializando = true;
             const now = new Date();
             document.getElementById('mes_previsao').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+            document.getElementById('data_busca').value = getHojeISO();
             if (!document.getElementById('data_escala').value) document.getElementById('data_escala').value = getHojeISO();
             await Promise.all([carregarConfiguracoes(), carregarFuncionariosNuvem()]);
             gerarCamposFormularioEscala();

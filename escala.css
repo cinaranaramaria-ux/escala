@@ -62,10 +62,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .extbl { width:100%; border-collapse:collapse; font-family:Calibri, Arial, sans-serif; font-size:12px; line-height:1.12; background:#fff; table-layout:fixed; }
 .extbl th, .extbl td { border:1px solid #000; padding:2px 4px; vertical-align:middle; overflow-wrap:anywhere; }
 .extbl td { text-align:center; }
+.sheet .extbl td { font-weight:700; }
 .extbl .exhdr { background:var(--cor-primaria); font-weight:700; text-align:center; }
 .extbl .exsub { background:var(--cor-secundaria); font-weight:700; text-align:center; }
 .sheet-aside td { padding:4px; }
-.sheet-observacoes { white-space:pre-wrap; border:1px solid #000; margin:2px 0 0; padding:3px 4px; font-size:12px; line-height:1.15; break-inside:avoid; page-break-inside:avoid; }
+.sheet-observacoes { white-space:pre-wrap; border:1px solid #000; margin:2px 0 0; padding:3px 4px; font-size:12px; line-height:1.15; font-weight:700; break-inside:avoid; page-break-inside:avoid; }
 .sheet-extras { display:flex; gap:12px; flex-wrap:wrap; align-items:start; }
 .sheet-extra { flex:1 1 280px; min-width:0; margin-bottom:12px; }
 .versao-salva { color:#166534; font-size:.8rem; margin:6px 0; }

@@ -136,7 +136,7 @@
     </style>
 <!-- </BLOCO_CSS_ESTILOS> -->
 
-<link rel="stylesheet" href="escala.css?v=20261017-consulta-unificada">
+<link rel="stylesheet" href="escala.css?v=20261018-previa-feriados">
 </head>
 <body>
     <h1 class="sr-only">Gerenciador de Escalas</h1>
@@ -433,8 +433,9 @@
                     <div>
                         <label>Folgas Extras / Feriado / Banco (Com Descrição)</label>
                         <div class="entry-grid entry-grid-extra">
-                            <input type="date" id="input_add_extra_data">
-                            <input type="text" id="input_add_extra_desc" placeholder="Motivo (Ex: Feriado)">
+                            <label>Data da folga<input type="date" id="input_add_extra_data"></label>
+                            <label>Motivo<input type="text" id="input_add_extra_desc" placeholder="Ex.: banco de horas"></label>
+                            <label>Feriado de referência (opcional)<input type="date" id="input_add_extra_feriado"></label>
                             <button type="button" class="btn-action" onclick="addDataExtraUI()">Add</button>
                         </div>
                         <div class="tag-container" id="container_datas_extras" style="margin-top: 8px; background: #fff;"></div>
@@ -589,7 +590,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="app-reliability.js?v=20261017-consulta-unificada"></script>
+    <script src="app-reliability.js?v=20261018-previa-feriados"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
         // =========================================================================
@@ -1790,12 +1791,33 @@
                 && (getObjRegraFolgaCombinada(f,dataEscala) || getObjFolgaExtra(f,dataEscala))).map(f => f.nome);
         }
 
+        function linhasFolgaFeriado(dataEscala, equipe, nomesFolga) {
+            const folgantes=new Set(nomesFolga.map(normalizeStr));
+            return [...new Set(equipe.flatMap(f => (Array.isArray(f.folgasExtras) ? f.folgasExtras : [])
+                .filter(extra => extra.data === dataEscala && /^\d{4}-\d{2}-\d{2}$/.test(extra.feriadoRef || '')
+                    && extra.feriadoRef !== dataEscala && folgantes.has(normalizeStr(f.nome)))
+                .map(extra => `${f.nome} ref feriado ${formatarDataBR(extra.feriadoRef).slice(0,5)}`)))];
+        }
+
+        function sincronizarObservacoesFolgaFeriado() {
+            const data=document.getElementById('data_escala')?.value;
+            const input=document.getElementById('observacoes');
+            if (!data || !input) return;
+            const todas=linhasFolgaFeriado(data,funcionarios,funcionarios.map(f=>f.nome));
+            if (!todas.length) return;
+            const referencias=new Set(todas.map(normalizeStr));
+            const existentes=input.value.split('\n').filter(linha=>!referencias.has(normalizeStr(linha)));
+            const ativas=linhasFolgaFeriado(data,funcionarios,nomesUnicos(document.getElementById('folgas')?.value));
+            input.value=[...existentes.filter(Boolean),...ativas].join('\n');
+        }
+
         function autocompletarTodasFolgas() {
             const dataEscala = document.getElementById('data_escala')?.value;
             if (!dataEscala) return alert('Selecione uma data para a escala primeiro!'); 
             const folgasInput = document.getElementById('folgas');
             if (folgasInput) {
                 aplicarAlocacao(folgasInput, [...nomesUnicos(folgasInput.value), ...nomesFolgaConfigurada(dataEscala)], {confirmar:false});
+                sincronizarObservacoesFolgaFeriado();
             }
         }
 
@@ -1822,7 +1844,7 @@
                 if (linhas.length) tabelasExtras[t.id]=linhas;
             });
             const excecoes=padrao.excecoes.map(e=>({...e,nomes:nomesUnicos(e.nomes||e.nome).filter(n=>nomesEmTurnos.has(normalizeStr(n))).join(',')})).filter(e=>e.nomes);
-            const observacoes=feriado ? `Feriado: ${feriado.nome}` : '';
+            const observacoes=[feriado ? `Feriado: ${feriado.nome}` : '',...linhasFolgaFeriado(data,equipe,folgas)].filter(Boolean).join('\n');
             return {data_escala:data,turnos,folgas:folgas.join(','),fiscais,excecoes,tabelasExtras,observacoes,
                 cor_observacoes:'#000000',modoEdicao:false,versaoBase:null,dataBase:null,requisicaoPendente:null,
                 json_layout:{turnos:padrao.turnos,tabelas:padrao.tabelas},atualizadoEm:new Date().toISOString()};
@@ -2181,6 +2203,7 @@
             if (hidden) {
                 hidden.value = hidden.value.split(',').filter(n => normalizeStr(n) !== normalizeStr(nome)).join(',');
                 atualizarTagsVisuais(campoId); 
+                if (campoId === 'folgas') sincronizarObservacoesFolgaFeriado();
                 atualizarOpcoesDropdown();
                 salvarRascunhoFormularioDebounced();
             }
@@ -2336,9 +2359,12 @@
         function addDataExtraUI() {
             const dt = document.getElementById('input_add_extra_data')?.value;
             const desc = document.getElementById('input_add_extra_desc')?.value.trim() || 'Folga Extra';
+            const feriadoRef = document.getElementById('input_add_extra_feriado')?.value || '';
             const colabAtualId = document.getElementById('func_id')?.value;
 
             if (!dt) return alert('Selecione uma data!');
+            if (feriadoRef && feriadoRef === dt) return alert('A folga compensatória deve ser em outra data, diferente do feriado.');
+            if (feriadoRef && !feriadosCadastrados().some(f=>f.data===feriadoRef)) return alert('Cadastre primeiro a data de referência em “Feriados deste mês” no calendário.');
 
             const maxPermitido = parseInt(lerLocal('maxFolgantes') || '1', 10);
             let folgantesNaData = [];
@@ -2356,14 +2382,16 @@
             }
 
             if (!datasExtrasTemp.some(x => x.data === dt)) {
-                datasExtrasTemp.push({ data: dt, desc: desc });
+                datasExtrasTemp.push({ data: dt, desc: desc, ...(feriadoRef ? {feriadoRef} : {}) });
                 datasExtrasTemp.sort((a,b) => a.data.localeCompare(b.data));
                 renderDatasExtrasUI();
             }
             const dtEl = document.getElementById('input_add_extra_data');
             const descEl = document.getElementById('input_add_extra_desc');
+            const feriadoEl = document.getElementById('input_add_extra_feriado');
             if (dtEl) dtEl.value = '';
             if (descEl) descEl.value = '';
+            if (feriadoEl) feriadoEl.value = '';
         }
 
         function removeDataExtraUI(dt) {
@@ -2376,7 +2404,7 @@
             if (!cont) return;
             cont.innerHTML = datasExtrasTemp.map(item => `
                 <div class="tag" title="${escapeHTML(item.desc)}">
-                    ${formatarDataBR(item.data)} (${escapeHTML(item.desc)}) 
+                    ${formatarDataBR(item.data)} (${escapeHTML(item.desc)})${item.feriadoRef ? ` · ref feriado ${escapeHTML(formatarDataBR(item.feriadoRef))}` : ''}
                     <span class="remover" onclick="removeDataExtraUI('${item.data}')">✖</span>
                 </div>`).join('');
             const hiddenEl = document.getElementById('func_folgas_extras');
@@ -2592,12 +2620,12 @@
                 <div class="aviso-versao" hidden>VERSÃO DESATUALIZADA: existem alterações NÃO SALVAS para esta data. Salve e confirme antes de imprimir.</div>
                 <div class="print-hide"><button class="btn-action" onclick="prepararEdicao('${encodeData(dados)}')">✏️ Editar escala</button></div>
                 <p class="versao-salva">Versão salva: ${escapeHTML(dados.ultima_atualizacao ? new Date(dados.ultima_atualizacao).toLocaleString('pt-BR') : 'registro anterior')}</p>
-                <p class="table-scroll-hint print-hide">Deslize a tabela para os lados para conferir todos os horários.</p><div class="sheet"><div class="table-responsive-wrapper">
+                <p class="table-scroll-hint print-hide">Deslize a pré-visualização para os lados para conferir toda a página.</p><div class="table-responsive-wrapper sheet-preview-scroll"><div class="sheet"><div class="sheet-page sheet-page-main">
                 <div class="sheet-heading">ESCALA DE TRABALHO — ${escapeHTML(formatarDataBR(dados.data_escala))} (${escapeHTML(getNomeDiaSemana(dados.data_escala))})</div>
                 <div class="sheet-layout"><div class="sheet-main">${shifts}${fiscaisBlock}</div>
-                <table class="extbl sheet-aside"><tbody class="sheet-aside-block"><tr><th class="exhdr">QUANTIDADE DE CAIXAS</th></tr><tr><td>${cxManha} PELA MANHÃ<br>${cxNoite} PELA TARDE/NOITE</td></tr></tbody><tbody class="sheet-aside-block"><tr><th class="exhdr">QUANTIDADE DE FISCAIS</th></tr><tr><td>${fiscManha} PELA MANHÃ<br>${fiscNoite} PELA TARDE/NOITE</td></tr></tbody><tbody class="sheet-aside-block"><tr><th class="exhdr">FOLGAS</th></tr><tr><td>${nomesUnicos(dados.folgas).map(n=>escapeHTML(n.toUpperCase())).join('<br>') || '-'}</td></tr></tbody></table></div></div>
+                <table class="extbl sheet-aside"><tbody class="sheet-aside-block"><tr><th class="exhdr">QUANTIDADE DE CAIXAS</th></tr><tr><td>${cxManha} PELA MANHÃ<br>${cxNoite} PELA TARDE/NOITE</td></tr></tbody><tbody class="sheet-aside-block"><tr><th class="exhdr">QUANTIDADE DE FISCAIS</th></tr><tr><td>${fiscManha} PELA MANHÃ<br>${fiscNoite} PELA TARDE/NOITE</td></tr></tbody><tbody class="sheet-aside-block"><tr><th class="exhdr">FOLGAS</th></tr><tr><td>${nomesUnicos(dados.folgas).map(n=>escapeHTML(n.toUpperCase())).join('<br>') || '-'}</td></tr></tbody></table></div>
                 ${obs ? `<div class="sheet-observacoes" style="color:${safeColor(cor)}"><strong>OBSERVAÇÕES:</strong> ${escapeHTML(obs)}</div>` : ''}
-                ${extras ? `<div class="sheet-extras">${extras}</div>` : ''}</div></section>`;
+                </div>${extras ? `<div class="sheet-page sheet-page-extras"><div class="sheet-extras">${extras}</div></div>` : ''}</div></div></section>`;
         }
 
         // ------------------ GERENCIAMENTO DE CONFIGURAÇÕES DE TURNOS E TABELAS EXTRAS NA UI ------------------

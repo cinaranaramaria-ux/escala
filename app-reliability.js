@@ -145,6 +145,7 @@ function aplicarAlocacao(target, nomes, {confirmar=true}={}) {
         el.value = nomesUnicos(el.value).filter(n => inShift.has(normalizeStr(n)) && !moved.has(normalizeStr(n))).join(',');
         atualizarTagsVisuais(el.id);
     });
+    sincronizarObservacoesFolgaFeriado();
     atualizarOpcoesDropdown(); salvarRascunhoFormularioDebounced(); return true;
 }
 function validarDuplicacoes() {

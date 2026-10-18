@@ -52,28 +52,37 @@ button.btn-action.consultation-print { background:#2563eb; }
 .form-section-folgas > .btn-action { justify-self:start; }
 .sticky-bottom-btn { position:static; bottom:auto; box-shadow:none; margin-top:18px; }
 .entry-grid { display:grid; gap:6px; }
-.entry-grid-extra { grid-template-columns:minmax(130px,1fr) minmax(140px,1.5fr) auto; }
+.entry-grid-extra { grid-template-columns:minmax(130px,1fr) minmax(140px,1fr) minmax(170px,1fr) auto; align-items:end; }
+.entry-grid-extra label { min-width:0; margin:0; }
+.entry-grid-extra label input { margin-top:4px; }
 .entry-grid-absence { grid-template-columns:repeat(2,minmax(0,1fr)) minmax(180px,1.5fr) auto; }
 .linha-tbl-extra > .btn-danger { background:transparent; color:#dc2626; border:0; padding:6px; font-size:1.1rem; }
 .linha-tbl-extra > .btn-danger:hover { background:#fee2e2; }
 .tag button.remover { color:#dc2626; background:transparent; border:0; font-weight:800; cursor:pointer; }
 .aviso-versao { background:#fef2f2; color:#991b1b; border:2px solid #dc2626; padding:10px; margin-bottom:8px; font-weight:bold; }
 .print-block-message { display:none; }
-.sheet { font-family:Calibri, Arial, sans-serif; color:#111; }
-.sheet-heading { border:1px solid #000; padding:4px 6px; font-size:14px; text-align:center; font-weight:700; background:var(--cor-primaria); break-after:avoid-page; page-break-after:avoid; }
+.sheet { font-family:Calibri, Arial, sans-serif; color:#111; font-weight:700; text-transform:uppercase; }
+.sheet-heading { border:1px solid #000; padding:3px; font-size:12px; line-height:1.12; text-align:center; font-weight:700; background:var(--cor-primaria); break-after:avoid-page; page-break-after:avoid; }
 .sheet-layout { display:grid; grid-template-columns:minmax(0, 3fr) minmax(150px, 1fr); align-items:start; }
 .sheet-main { display:flex; flex-direction:column; min-width:0; }
 .shift-block, .sheet-fiscais, .sheet-aside-block, .sheet-extra { break-inside:avoid; page-break-inside:avoid; }
-.extbl { width:100%; border-collapse:collapse; font-family:Calibri, Arial, sans-serif; font-size:12px; line-height:1.12; background:#fff; table-layout:fixed; }
-.extbl th, .extbl td { border:1px solid #000; padding:2px 4px; vertical-align:middle; overflow-wrap:anywhere; }
+.extbl { width:100%; border-collapse:collapse; font-family:Calibri, Arial, sans-serif; font-size:11px; line-height:1.10; background:#fff; table-layout:fixed; }
+.extbl th, .extbl td { border:1px solid #000; padding:1.75px 3px; vertical-align:middle; overflow-wrap:anywhere; }
 .extbl td { text-align:center; }
 .sheet .extbl td { font-weight:700; }
 .extbl .exhdr { background:var(--cor-primaria); font-weight:700; text-align:center; }
 .extbl .exsub { background:var(--cor-secundaria); font-weight:700; text-align:center; }
-.sheet-aside td { padding:4px; }
-.sheet-observacoes { white-space:pre-wrap; border:1px solid #000; margin:2px 0 0; padding:3px 4px; font-size:12px; line-height:1.15; font-weight:700; break-inside:avoid; page-break-inside:avoid; }
-.sheet-extras { display:flex; gap:12px; flex-wrap:wrap; align-items:start; }
-.sheet-extra { flex:1 1 280px; min-width:0; margin-bottom:12px; }
+.sheet-aside td { padding:3px; }
+.sheet-observacoes { white-space:pre-wrap; border:1px solid #000; margin:2px 0 0; padding:4px; font-size:11px; line-height:1.15; font-weight:700; break-inside:avoid; page-break-inside:avoid; }
+.sheet-extras { display:flex; gap:8px; flex-wrap:wrap; align-items:start; }
+.sheet-extra { flex:1 1 calc(50% - 4px); min-width:0; }
+.sheet-preview-scroll { margin-top:10px; }
+@media screen {
+    .sheet-preview-scroll { padding:12px; background:#e2e8f0; border:1px solid #cbd5e1; }
+    .sheet { width:210mm; margin:0 auto; }
+    .sheet-page { box-sizing:border-box; width:210mm; min-height:297mm; padding:8mm; margin-bottom:12px; background:#fff; box-shadow:0 3px 12px rgba(15,23,42,.16); }
+    .sheet-page:last-child { margin-bottom:0; }
+}
 .versao-salva { color:#166534; font-size:.8rem; margin:6px 0; }
 .table-scroll-hint { display:none; }
 .sheet tr { break-inside:avoid; }
@@ -102,11 +111,7 @@ button.btn-action.consultation-print { background:#2563eb; }
     .modal-overlay { padding:8px; }
     .modal-content { max-height:92dvh; padding:16px; }
     .checkbox-list { max-height:60dvh; min-height:0; }
-    .sheet-layout { min-width:650px; }
     .table-scroll-hint { display:block; font-size:.8rem; color:#475569; margin:6px 0; }
-    .sheet-heading { min-width:650px; }
-    .sheet-extra .extbl { min-width:340px; }
-    .sheet-extra { overflow-x:auto; }
     #configuracoes .card > div[style*="justify-content:space-between"], #containerTurnosConfig > div { flex-wrap:wrap; gap:8px; }
     .status-actions > button { flex:1 1 160px; }
     .consultation-toolbar { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -122,23 +127,20 @@ button.btn-action.consultation-print { background:#2563eb; }
 }
 @media print {
     @page { size:A4; margin:8mm; }
-    body { width:194mm !important; max-width:none !important; padding:0 !important; font-size:11px; line-height:1.12; }
+    body { width:100% !important; max-width:none !important; padding:0 !important; font-size:11px; line-height:1.12; }
     .tab-content { display:none !important; }
     .tab-content.active { display:block !important; animation:none !important; opacity:1 !important; transform:none !important; }
     .tab-content.active.print-hide, .print-hide, .versao-salva { display:none !important; }
     .sheet-layout { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,1fr); min-width:0; align-items:start; }
-    .sheet { display:block; min-height:0; }
+    .sheet-preview-scroll { overflow:visible !important; border:0; padding:0; margin:0; background:none; }
+    .sheet { display:block; width:100%; min-height:0; margin:0; }
+    .sheet-page { width:100%; min-height:0; padding:0; margin:0; box-shadow:none; }
+    .sheet-page-extras { break-before:page; page-break-before:always; }
     .sheet-observacoes { margin-top:2px; }
     .sheet-main { min-width:0; }
     .shift-block, .sheet-fiscais, .sheet-aside-block, .sheet-extra { break-inside:avoid; page-break-inside:avoid; }
-    .sheet-heading { min-width:0; font-size:12px; padding:3px; }
-    .extbl { min-width:0 !important; font-size:11px; line-height:1.10; }
-    .extbl th, .extbl td { padding:1.75px 3px; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
-    .sheet-aside td { padding:3px; }
-    .sheet-observacoes { font-size:11px; padding:4px; }
-    .sheet-extra { min-width:0; overflow:visible; }
-    .sheet-extras { display:block; break-before:page; page-break-before:always; }
-    .sheet-extra { margin-bottom:8px; }
+    .extbl { min-width:0 !important; }
+    .extbl th, .extbl td { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
     .escala-desatualizada .sheet { display:none !important; }
     .escala-desatualizada .aviso-versao { display:block !important; }
     body.impressao-bloqueada > * { display:none !important; }

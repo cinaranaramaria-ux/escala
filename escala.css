@@ -63,7 +63,7 @@ button.btn-action.consultation-print { background:#2563eb; }
 .print-block-message { display:none; }
 .sheet { font-family:Calibri, Arial, sans-serif; color:#111; font-weight:700; text-transform:uppercase; }
 .sheet-heading { border:1px solid #000; padding:3px; font-size:12px; line-height:1.12; text-align:center; font-weight:700; background:var(--cor-primaria); break-after:avoid-page; page-break-after:avoid; }
-.sheet-layout { display:grid; grid-template-columns:minmax(0, 3fr) minmax(150px, 1fr); align-items:start; }
+.sheet-layout { display:grid; grid-template-columns:minmax(0, 3fr) minmax(150px, 1fr); align-items:start; border:1px solid #000; }
 .sheet-main { display:flex; flex-direction:column; min-width:0; }
 .shift-block, .sheet-fiscais, .sheet-aside-block, .sheet-extra { break-inside:avoid; page-break-inside:avoid; }
 .extbl { width:100%; border-collapse:collapse; font-family:Calibri, Arial, sans-serif; font-size:11px; line-height:1.10; background:#fff; table-layout:fixed; }

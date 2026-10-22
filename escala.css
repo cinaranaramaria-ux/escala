@@ -21,6 +21,9 @@ button.btn-action.consultation-print { background:#2563eb; }
 .print-size-slider { display:flex; align-items:center; gap:10px; }
 .print-size-slider input { flex:1; min-width:80px; cursor:pointer; }
 .print-size-slider span { white-space:nowrap; font-size:.82rem; color:#334155; }
+.holiday-leave-alert { padding:10px 12px; margin:0 0 12px; border:2px solid #d97706; border-radius:8px; background:#fffbeb; color:#78350f; }
+.holiday-leave-alert ul { margin:6px 0 0; padding-left:20px; }
+.holiday-leave-alert li + li { margin-top:3px; }
 .form-pattern-actions { display:flex; flex-wrap:wrap; gap:8px; }
 .monthly-tools { display:grid; gap:8px; padding:12px; margin-bottom:12px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; }
 .monthly-tools > button { justify-self:start; }

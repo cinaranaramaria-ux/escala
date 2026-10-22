@@ -136,7 +136,7 @@
     </style>
 <!-- </BLOCO_CSS_ESTILOS> -->
 
-<link rel="stylesheet" href="escala.css?v=20261022-ajuste-impressao">
+<link rel="stylesheet" href="escala.css?v=20261022-folgas-espacamento">
 </head>
 <body>
     <h1 class="sr-only">Gerenciador de Escalas</h1>
@@ -189,6 +189,7 @@
                 <span class="chip-folga bg-ferias">Férias</span>
                 <span class="chip-folga bg-ausencia">Ausência/Atestado</span>
             </div>
+            <div id="alertaFolgasFeriadoHoje" class="holiday-leave-alert" role="status" aria-live="polite" hidden></div>
             <div class="monthly-tools print-hide">
                 <button id="btnGerarMes" type="button" class="btn-action" onclick="gerarEscalasDoMes()">Gerar e publicar escalas do mês</button>
                 <span id="statusGeracaoMes" role="status" aria-live="polite">Usa os padrões cadastrados; escalas e rascunhos existentes serão preservados. Cada dia só conta como publicado após confirmação do banco.</span>
@@ -366,7 +367,7 @@
             </div>
             <div class="print-size-control print-hide">
                 <label for="tamanhoEscala">Tamanho da escala: <output id="tamanhoEscalaValor" for="tamanhoEscala">50%</output></label>
-                <div class="print-size-slider"><span>0% · compacto</span><input type="range" id="tamanhoEscala" min="0" max="100" step="5" value="50" oninput="ajustarTamanhoEscala(this.value)" aria-label="Tamanho das linhas e letras da escala impressa"><span>100% · original</span></div>
+                <div class="print-size-slider"><span>0% · compacto</span><input type="range" id="tamanhoEscala" min="0" max="100" step="5" value="50" oninput="ajustarTamanhoEscala(this.value)" aria-label="Tamanho das linhas e letras da escala impressa"><span>100% · espaço 4×</span></div>
                 <small>Altera a pré-visualização e o PDF. Sua escolha fica salva neste aparelho.</small>
             </div>
             <div id="historicoContainer">Consultando a escala de hoje…</div>
@@ -610,10 +611,11 @@
         function ajustarTamanhoEscala(valor) {
             const percentual = Math.max(0, Math.min(100, Number(valor) || 0));
             const proporcao = percentual / 100;
+            const espacamentoVertical = percentual <= 50 ? 1.5 + 0.5 * proporcao : 1.75 + (percentual - 50) / 50 * 6.25;
             const medidas = {
                 '--escala-fonte': `${11 + proporcao}px`,
                 '--escala-linha': String(1.10 + 0.02 * proporcao),
-                '--escala-padding-y': `${1.5 + 0.5 * proporcao}px`,
+                '--escala-padding-y': `${espacamentoVertical}px`,
                 '--escala-padding-x': `${3 + proporcao}px`,
                 '--escala-aside-padding': `${3 + proporcao}px`,
                 '--escala-titulo-fonte': `${12 + 2 * proporcao}px`,
@@ -1533,6 +1535,23 @@
         }
 
         // ------------------ CALENDÁRIO GERAL (OTIMIZADO) ------------------
+        function atualizarAlertaFolgasFeriadoHoje(mesAno, escalasDoMes) {
+            const aviso = document.getElementById('alertaFolgasFeriadoHoje');
+            if (!aviso) return;
+            const hoje = getHojeISO();
+            if (mesAno !== hoje.slice(0,7)) { aviso.hidden = true; aviso.innerHTML = ''; return; }
+            const escalaHoje = escalasDoMes.find(e => String(e.data_escala || '').slice(0,10) === hoje);
+            const nomesSalvos = escalaHoje ? new Set(nomesUnicos(escalaHoje.folgas).map(normalizeStr)) : null;
+            const compensatorias = funcionarios.flatMap(f => {
+                if (isDesativado(f,hoje) || isDeFerias(f,hoje) || getObjAusencia(f,hoje)) return [];
+                if (nomesSalvos && !nomesSalvos.has(normalizeStr(f.nome))) return [];
+                const extra = (Array.isArray(f.folgasExtras) ? f.folgasExtras : []).find(item => item.data === hoje
+                    && /^\d{4}-\d{2}-\d{2}$/.test(item.feriadoRef || '') && item.feriadoRef !== hoje);
+                return extra ? [{nome:f.nome,feriadoRef:extra.feriadoRef}] : [];
+            });
+            aviso.hidden = compensatorias.length === 0;
+            aviso.innerHTML = compensatorias.length ? `<strong>Folgas compensatórias de hoje (${escapeHTML(formatarDataBR(hoje))})</strong><span> — ${escalaHoje ? 'conferidas na escala salva' : 'previstas pelo cadastro'}</span><ul>${compensatorias.map(item=>`<li>${escapeHTML(item.nome)} · ref. feriado ${escapeHTML(formatarDataBR(item.feriadoRef))}</li>`).join('')}</ul>` : '';
+        }
         async function renderizarCalendario() {
             const mesAno = document.getElementById('mes_previsao')?.value;
             if (!mesAno) return;
@@ -1558,6 +1577,7 @@
             } catch (e) {
                 console.error('[Calendário] Erro ao buscar escalas do mês:', e);
             }
+            atualizarAlertaFolgasFeriadoHoje(mesAno, escalasDoMes);
 
             // Dias vazios no início do mês
             for (let i = 0; i < primeiroDiaDaSemana; i++) {

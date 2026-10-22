@@ -15,6 +15,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .consultation-date input { width:100%; }
 button.btn-action.consultation-secondary { background:#fff; border:1px solid #94a3b8; color:#334155; }
 button.btn-action.consultation-print { background:#2563eb; }
+.print-size-control { display:grid; gap:5px; padding:10px 12px; margin:-5px 0 15px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; }
+.print-size-control label { font-weight:700; }
+.print-size-control small { color:#475569; }
+.print-size-slider { display:flex; align-items:center; gap:10px; }
+.print-size-slider input { flex:1; min-width:80px; cursor:pointer; }
+.print-size-slider span { white-space:nowrap; font-size:.82rem; color:#334155; }
 .form-pattern-actions { display:flex; flex-wrap:wrap; gap:8px; }
 .monthly-tools { display:grid; gap:8px; padding:12px; margin-bottom:12px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; }
 .monthly-tools > button { justify-self:start; }
@@ -62,17 +68,17 @@ button.btn-action.consultation-print { background:#2563eb; }
 .aviso-versao { background:#fef2f2; color:#991b1b; border:2px solid #dc2626; padding:10px; margin-bottom:8px; font-weight:bold; }
 .print-block-message { display:none; }
 .sheet { font-family:Calibri, Arial, sans-serif; color:#111; font-weight:700; text-transform:uppercase; }
-.sheet-heading { border:1px solid #000; padding:3px; font-size:12px; line-height:1.12; text-align:center; font-weight:700; background:var(--cor-primaria); break-after:avoid-page; page-break-after:avoid; }
+.sheet-heading { border:1px solid #000; padding:var(--escala-titulo-padding, 3px); font-size:var(--escala-titulo-fonte, 13px); line-height:1.12; text-align:center; font-weight:700; background:var(--cor-primaria); break-after:avoid-page; page-break-after:avoid; }
 .sheet-layout { display:grid; grid-template-columns:minmax(0, 3fr) minmax(150px, 1fr); align-items:start; border:1px solid #000; }
 .sheet-main { display:flex; flex-direction:column; min-width:0; }
 .shift-block, .sheet-fiscais, .sheet-aside-block, .sheet-extra { break-inside:avoid; page-break-inside:avoid; }
-.extbl { width:100%; border-collapse:collapse; font-family:Calibri, Arial, sans-serif; font-size:11px; line-height:1.10; background:#fff; table-layout:fixed; }
-.extbl th, .extbl td { border:1px solid #000; padding:1.75px 3px; vertical-align:middle; overflow-wrap:anywhere; }
+.extbl { width:100%; border-collapse:collapse; font-family:Calibri, Arial, sans-serif; font-size:var(--escala-fonte, 11.5px); line-height:var(--escala-linha, 1.11); background:#fff; table-layout:fixed; }
+.extbl th, .extbl td { border:1px solid #000; padding:var(--escala-padding-y, 1.75px) var(--escala-padding-x, 3.5px); vertical-align:middle; overflow-wrap:anywhere; }
 .extbl td { text-align:center; }
 .sheet .extbl td { font-weight:700; }
 .extbl .exhdr { background:var(--cor-primaria); font-weight:700; text-align:center; }
 .extbl .exsub { background:var(--cor-secundaria); font-weight:700; text-align:center; }
-.sheet-aside td { padding:3px; }
+.sheet-aside td { padding:var(--escala-aside-padding, 3.5px); }
 .sheet-observacoes { white-space:pre-wrap; border:1px solid #000; margin:2px 0 0; padding:4px; font-size:11px; line-height:1.15; font-weight:700; break-inside:avoid; page-break-inside:avoid; }
 .sheet-extras { display:flex; gap:8px; flex-wrap:wrap; align-items:start; }
 .sheet-extra { flex:1 1 calc(50% - 4px); min-width:0; }
@@ -117,6 +123,8 @@ button.btn-action.consultation-print { background:#2563eb; }
     .consultation-toolbar { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
     .consultation-date { grid-column:1 / -1; }
     .consultation-toolbar > button { width:100%; min-width:0; margin:0; white-space:normal; }
+    .print-size-slider { flex-wrap:wrap; }
+    .print-size-slider input { order:2; flex-basis:100%; }
     .entry-grid-extra, .entry-grid-absence { grid-template-columns:minmax(0,1fr); }
 }
 @media (min-width:641px) and (max-width:899px) {

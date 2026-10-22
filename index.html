@@ -136,7 +136,7 @@
     </style>
 <!-- </BLOCO_CSS_ESTILOS> -->
 
-<link rel="stylesheet" href="escala.css?v=20261018-moldura-tabela">
+<link rel="stylesheet" href="escala.css?v=20261022-ajuste-impressao">
 </head>
 <body>
     <h1 class="sr-only">Gerenciador de Escalas</h1>
@@ -363,6 +363,11 @@
                 <button type="button" class="btn-action consultation-secondary" onclick="buscarHistorico()">🔄 Atualizar</button>
                 <button type="button" class="btn-action consultation-launch" onclick="openTab('cadastrar')">📝 Lançar escala</button>
                 <button type="button" class="btn-action consultation-print" onclick="imprimirEscalaAtual()">🖨️ Imprimir PDF</button>
+            </div>
+            <div class="print-size-control print-hide">
+                <label for="tamanhoEscala">Tamanho da escala: <output id="tamanhoEscalaValor" for="tamanhoEscala">50%</output></label>
+                <div class="print-size-slider"><span>0% · compacto</span><input type="range" id="tamanhoEscala" min="0" max="100" step="5" value="50" oninput="ajustarTamanhoEscala(this.value)" aria-label="Tamanho das linhas e letras da escala impressa"><span>100% · original</span></div>
+                <small>Altera a pré-visualização e o PDF. Sua escolha fica salva neste aparelho.</small>
             </div>
             <div id="historicoContainer">Consultando a escala de hoje…</div>
         </div>
@@ -600,6 +605,27 @@
             "Domingo", "Segunda-feira", "Terça-feira", 
             "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"
         ];
+
+        const CHAVE_TAMANHO_ESCALA = 'escala_tamanho_impressao';
+        function ajustarTamanhoEscala(valor) {
+            const percentual = Math.max(0, Math.min(100, Number(valor) || 0));
+            const proporcao = percentual / 100;
+            const medidas = {
+                '--escala-fonte': `${11 + proporcao}px`,
+                '--escala-linha': String(1.10 + 0.02 * proporcao),
+                '--escala-padding-y': `${1.5 + 0.5 * proporcao}px`,
+                '--escala-padding-x': `${3 + proporcao}px`,
+                '--escala-aside-padding': `${3 + proporcao}px`,
+                '--escala-titulo-fonte': `${12 + 2 * proporcao}px`,
+                '--escala-titulo-padding': `${3 + proporcao}px`
+            };
+            Object.entries(medidas).forEach(([nome,medida]) => document.documentElement.style.setProperty(nome,medida));
+            document.getElementById('tamanhoEscala').value = String(percentual);
+            document.getElementById('tamanhoEscalaValor').value = `${percentual}%`;
+            try { localStorage.setItem(CHAVE_TAMANHO_ESCALA,String(percentual)); } catch (_) { /* Armazenamento indisponível: ajuste vale nesta sessão. */ }
+        }
+        try { ajustarTamanhoEscala(localStorage.getItem(CHAVE_TAMANHO_ESCALA) ?? 50); }
+        catch (_) { ajustarTamanhoEscala(50); }
 
         /**
          * Normaliza strings removendo acentos, caracteres especiais e convertendo para minúsculas.

@@ -1,5 +1,7 @@
 # Ativação do modo 5×2
 
+Atualização: para operar os dois modos em um único workflow, usar `backend/Escalas unificado.json` e seguir `docs/WORKFLOW-UNIFICADO.md`. Esse procedimento substitui a publicação dos dois workflows separados descrita abaixo; as mesmas tabelas e endpoints são mantidos.
+
 O frontend oferece `inicio.html` para escolher o modo. O link antigo continua abrindo a escala atual e inclui “Trocar modo”. O 5×2 usa `index.html?modo=5x2`.
 
 ## Instalação

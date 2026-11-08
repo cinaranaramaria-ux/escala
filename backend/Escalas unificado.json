@@ -1,0 +1,2140 @@
+{
+  "name": "Escalas - Atual e 5x2 (unificado)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gerar-escala",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        9840
+      ],
+      "id": "c8105c65-c77b-4a02-aec3-422410fdcb0b",
+      "name": "Atual | Webhook Receiver",
+      "webhookId": "542229cf-12e0-47cf-ab5c-7d648f7f0ca2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH saved AS (\n    INSERT INTO public.escalas_simplificada AS atual (\n        data_escala, turno_06h, turno_08h, turno_11h, turno_12h40,\n        fiscais, folgas, observacoes, json_excecoes_horario, json_tabelas_extras,\n        json_turnos, json_layout, save_request_id, jovem_aprendiz, escala_app, ultima_atualizacao\n    ) VALUES (\n        $1::date, $2, $3, $4, $5, $6, $7, $8, $9, $10,\n        $11::jsonb, $12::jsonb, $13, '', '', clock_timestamp()\n    )\n    ON CONFLICT (data_escala) DO UPDATE SET\n        turno_06h=EXCLUDED.turno_06h, turno_08h=EXCLUDED.turno_08h,\n        turno_11h=EXCLUDED.turno_11h, turno_12h40=EXCLUDED.turno_12h40,\n        fiscais=EXCLUDED.fiscais, folgas=EXCLUDED.folgas, observacoes=EXCLUDED.observacoes,\n        json_excecoes_horario=EXCLUDED.json_excecoes_horario,\n        json_tabelas_extras=EXCLUDED.json_tabelas_extras,\n        json_turnos=EXCLUDED.json_turnos, json_layout=EXCLUDED.json_layout,\n        ultima_atualizacao=CASE WHEN atual.save_request_id=EXCLUDED.save_request_id\n            THEN atual.ultima_atualizacao ELSE EXCLUDED.ultima_atualizacao END,\n        save_request_id=EXCLUDED.save_request_id\n    WHERE atual.save_request_id=EXCLUDED.save_request_id\n        OR date_trunc('milliseconds', atual.ultima_atualizacao) = $14::timestamptz\n    RETURNING *\n)\nSELECT CASE WHEN EXISTS(SELECT 1 FROM saved) THEN 'sucesso' ELSE 'conflito' END AS status,\n    (SELECT to_jsonb(saved) FROM saved) AS saved;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.data_escala,\n    $json.body.json_turnos.t_06 || '', $json.body.json_turnos.t_08 || '',\n    $json.body.json_turnos.t_11 || '', $json.body.json_turnos.t_12 || '',\n    $json.body.fiscais || '', $json.body.folgas || '', $json.body.observacoes || '',\n    $json.body.json_excecoes_horario || '[]', $json.body.json_tabelas_extras || '{}',\n    JSON.stringify($json.body.json_turnos), JSON.stringify($json.body.json_layout),\n    $json.body.save_request_id, $json.body.expected_updated_at || null] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -2000,
+        9840
+      ],
+      "id": "ec1a92f9-9112-4e14-bb32-6af14dc02f94",
+      "name": "Atual | store",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Falha ao gravar no banco. Tente novamente; o rascunho permanece no navegador.'} : ($json.status === 'sucesso' ? $json : {status:'conflito',mensagem:'A escala mudou no servidor. Atualize a consulta antes de sobrescrever.'}) }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : ($json.status === 'sucesso' ? 200 : 409) }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -1776,
+        9840
+      ],
+      "id": "f71b650f-b303-4dca-9348-a45897c36e5e",
+      "name": "Atual | Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "path": "buscar-escala",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        10064
+      ],
+      "id": "ca2fa9db-3c94-44bb-a299-46c319749981",
+      "name": "Atual | Webhook Busca",
+      "webhookId": "802ea0ed-f60c-4acf-96c7-be6717a3588d"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM public.escalas_simplificada\nWHERE ($1::date IS NOT NULL AND data_escala=$1::date)\n   OR ($1::date IS NULL AND $2::text IS NOT NULL\n       AND data_escala >= ($2 || '-01')::date\n       AND data_escala < (($2 || '-01')::date + INTERVAL '1 month'))\nORDER BY data_escala ASC;",
+        "options": {
+          "queryReplacement": "={{ [$json.query.data || null, $json.query.mes || null] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -2224,
+        10064
+      ],
+      "id": "f16a2f40-4e50-4860-968a-26ba90b04a69",
+      "name": "Atual | Buscar no Supabase",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().some(i=>i.json.error) ? {status:'erro',mensagem:'Falha ao consultar o banco. Tente novamente.'} : $input.all().map(i=>i.json).filter(i=>i.data_escala) }}",
+        "options": {
+          "responseCode": "={{ $input.all().some(i=>i.json.error) ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -2000,
+        10064
+      ],
+      "id": "011c5e74-9180-4c0c-a71c-cf7a930076d9",
+      "name": "Atual | Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "path": "buscar-funcionarios",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        10288
+      ],
+      "name": "Atual | GET Funcionarios",
+      "id": "6710592d-f6f6-4921-929a-33fc6e7ffaec",
+      "webhookId": "0da6e9ff-ea8a-4070-93da-20c4ddd0a30e"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM public.funcionarios ORDER BY nome ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -2224,
+        10288
+      ],
+      "name": "Atual | DB GET",
+      "id": "3e76d1a5-eb8b-4b59-8177-2e86acfe148d",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().some(i=>i.json.error) ? {status:'erro',mensagem:'Falha ao consultar o banco. Tente novamente.'} : $input.all().map(i=>i.json).filter(i=>i.id) }}",
+        "options": {
+          "responseCode": "={{ $input.all().some(i=>i.json.error) ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -2000,
+        10288
+      ],
+      "name": "Atual | Res GET",
+      "id": "f13a1a06-ce9e-4f63-9904-d79558b1d656"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "salvar-funcionario",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        10512
+      ],
+      "name": "Atual | POST Funcionario",
+      "id": "ebf1acad-7c59-4a2d-bde0-950696fc9cf0",
+      "webhookId": "7152280e-b503-4e80-aaa2-4afd4ebce2a6"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.funcionarios (\n    id, nome, cor, alerta, folga_fixa, ciclo_dias, ciclo_data_base,\n    folgas_extras, json_excecoes, ferias_ini, ferias_fim, data_limite\n) VALUES ($1,$2,$3,$4,$5,$6,$7::date,$8,$9,$10::date,$11::date,$12::date)\nON CONFLICT (id) DO UPDATE SET\n    nome=EXCLUDED.nome, cor=EXCLUDED.cor, alerta=EXCLUDED.alerta,\n    folga_fixa=EXCLUDED.folga_fixa, ciclo_dias=EXCLUDED.ciclo_dias,\n    ciclo_data_base=EXCLUDED.ciclo_data_base, folgas_extras=EXCLUDED.folgas_extras,\n    json_excecoes=EXCLUDED.json_excecoes, ferias_ini=EXCLUDED.ferias_ini,\n    ferias_fim=EXCLUDED.ferias_fim, data_limite=EXCLUDED.data_limite\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.id, $json.body.nome, $json.body.cor,\n    typeof $json.body.alerta === 'object' ? JSON.stringify($json.body.alerta) : $json.body.alerta,\n    $json.body.folga_fixa || null, $json.body.ciclo_dias || null,\n    $json.body.ciclo_data_base || null, $json.body.folgas_extras || null,\n    $json.body.json_excecoes || null, $json.body.ferias_ini || null,\n    $json.body.ferias_fim || null, $json.body.data_limite || null] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -2224,
+        10512
+      ],
+      "name": "Atual | DB POST",
+      "id": "aff54ac4-8699-4467-9aa6-0ab57eaf3e48",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Falha ao gravar no banco.'} : {status:'ok'} }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -2000,
+        10512
+      ],
+      "name": "Atual | Res POST",
+      "id": "8151e31f-63d6-4793-8eae-acb4b0683756"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "excluir-funcionario",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        10736
+      ],
+      "name": "Atual | DELETE Funcionario",
+      "id": "1947195c-764b-4cf2-a982-e1d977a2b070",
+      "webhookId": "6f4ee3a0-ee59-4788-b1cd-cc48bee4ffcd"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM public.funcionarios WHERE id=$1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.id] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -2224,
+        10736
+      ],
+      "name": "Atual | DB DELETE",
+      "id": "63091925-64af-4cbe-8633-a50d06ca9fa4",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Falha ao gravar no banco.'} : {status:'ok'} }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -2000,
+        10736
+      ],
+      "name": "Atual | Res DELETE",
+      "id": "476be58c-4195-40b6-a2ad-ccdcea705e4d"
+    },
+    {
+      "parameters": {
+        "path": "buscar-configuracoes",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        10960
+      ],
+      "id": "91de636d-ee3f-40ce-9275-711774d2be73",
+      "name": "Atual | GET Config",
+      "webhookId": "52f1a87d-edb0-4aab-b3b9-73a315ef89c0"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM public.configuracoes_sistema WHERE id='global' LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -2224,
+        10960
+      ],
+      "id": "a4cc53c1-7787-41f8-aa15-98ae1ec06fbd",
+      "name": "Atual | DB GET Config",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().some(i=>i.json.error) ? {status:'erro',mensagem:'Falha ao consultar o banco. Tente novamente.'} : $input.all().map(i=>i.json).filter(i=>i.id) }}",
+        "options": {
+          "responseCode": "={{ $input.all().some(i=>i.json.error) ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -2000,
+        10960
+      ],
+      "id": "35dda8e5-7568-4840-8709-07fdfc763659",
+      "name": "Atual | Res GET Config"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "salvar-configuracoes",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        11184
+      ],
+      "id": "948bfb31-92b6-44ad-bf59-f5c3a0e589a9",
+      "name": "Atual | POST Config",
+      "webhookId": "ce661122-e862-4fc7-803f-91a05bec48f7"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.configuracoes_sistema (\n    id,modo_limite,max_folgantes,trava_estrita,cor_primaria,cor_secundaria,cor_alerta,\n    cfg_turnos,cfg_tabelas_extras,cfg_fiscais_padrao,cfg_excecoes_padrao,cfg_alertas,updated_at\n) VALUES ('global',$1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10::jsonb,$11::jsonb,NOW())\nON CONFLICT (id) DO UPDATE SET\n    modo_limite=EXCLUDED.modo_limite,max_folgantes=EXCLUDED.max_folgantes,\n    trava_estrita=EXCLUDED.trava_estrita,cor_primaria=EXCLUDED.cor_primaria,\n    cor_secundaria=EXCLUDED.cor_secundaria,cor_alerta=EXCLUDED.cor_alerta,\n    cfg_turnos=EXCLUDED.cfg_turnos,cfg_tabelas_extras=EXCLUDED.cfg_tabelas_extras,\n    cfg_fiscais_padrao=EXCLUDED.cfg_fiscais_padrao,cfg_excecoes_padrao=EXCLUDED.cfg_excecoes_padrao,\n    cfg_alertas=EXCLUDED.cfg_alertas,updated_at=NOW()\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.modo_limite, $json.body.max_folgantes, $json.body.trava_estrita,\n    $json.body.cor_primaria, $json.body.cor_secundaria, $json.body.cor_alerta,\n    JSON.stringify($json.body.cfg_turnos), JSON.stringify($json.body.cfg_tabelas_extras),\n    JSON.stringify($json.body.cfg_fiscais_padrao), JSON.stringify($json.body.cfg_excecoes_padrao),\n    JSON.stringify($json.body.cfg_alertas || {})] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -2000,
+        11184
+      ],
+      "id": "dbc26db3-202f-431e-ad02-ae334f82d8d6",
+      "name": "Atual | DB POST Config",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Falha ao gravar no banco.'} : {status:'ok'} }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -1776,
+        11184
+      ],
+      "id": "98f32ef0-d404-4587-8362-ee5069882772",
+      "name": "Atual | Res POST Config"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body;\nif (!body || typeof body !== 'object') throw new Error('Dados da escala ausentes.');\nconst validDate = value => /^\\d{4}-\\d{2}-\\d{2}$/.test(value || '') &&\n    !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;\nif (!validDate(body.data_escala)) throw new Error('Data inválida.');\nif (!body.save_request_id || !/^[\\w-]{8,100}$/.test(body.save_request_id)) throw new Error('Identificador do envio inválido.');\nif (!body.json_turnos || Array.isArray(body.json_turnos) || typeof body.json_turnos !== 'object') throw new Error('Turnos ausentes.');\nif (!body.json_layout || !Array.isArray(body.json_layout.turnos) || !Array.isArray(body.json_layout.tabelas)) throw new Error('Layout ausente.');\nconst parse = (value, fallback) => typeof value === 'string' ? JSON.parse(value) : value || fallback;\nconst normalize = n => String(n).normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').trim().toLowerCase();\nconst allocated = new Set();\nconst add = value => {\n    String(value || '').split(',').filter(n=>n.trim()).forEach(n=> {\n        const key=normalize(n); if (allocated.has(key)) throw new Error('Colaborador duplicado: '+n);\n        allocated.add(key);\n    });\n};\nfor (const [id,names] of Object.entries(body.json_turnos)) {\n    if (!/^t_[a-zA-Z0-9_-]+$/.test(id) || typeof names !== 'string') throw new Error('Turno inválido.');\n    add(names);\n}\nadd(body.folgas);\nString(body.fiscais || '').split('||').filter(Boolean).forEach(row => add(row.split('|')[0]));\nconst extra = parse(body.json_tabelas_extras, {});\nfor (const table of body.json_layout.tabelas) {\n    if (!/^tbl_[a-zA-Z0-9_-]+$/.test(table.id) || !Array.isArray(table.colunas) || !table.colunas.length) throw new Error('Tabela inválida.');\n    if (!Array.isArray(extra[table.id] || [])) throw new Error('Linhas inválidas.');\n    for (const row of extra[table.id] || []) add(row[table.colunas[0]]);\n}\nfor (const turno of body.json_layout.turnos) {\n    if (!/^t_[a-zA-Z0-9_-]+$/.test(turno.id)) throw new Error('ID de turno inválido.');\n}\nif (body.expected_updated_at && Number.isNaN(Date.parse(body.expected_updated_at))) throw new Error('Versão base inválida.');\nconst exceptions = parse(body.json_excecoes_horario, []);\nif (!Array.isArray(exceptions)) throw new Error('Exceções inválidas.');\nreturn [{json: {...$json, body: {...body,\n    json_excecoes_horario:JSON.stringify(exceptions), json_tabelas_extras:JSON.stringify(extra)}}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2224,
+        9840
+      ],
+      "name": "Atual | Validar Escala",
+      "id": "a7603aa2-baec-428d-8466-2b382eac2efb"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b=$json.body;\nif (!b || !Array.isArray(b.cfg_turnos) || !Array.isArray(b.cfg_tabelas_extras) || !Array.isArray(b.cfg_fiscais_padrao) || !Array.isArray(b.cfg_excecoes_padrao)) throw new Error('Configuração inválida.');\nconst ids=new Set();\nfor (const item of [...b.cfg_turnos,...b.cfg_tabelas_extras]) {\n    if (!/^(t|tbl)_[a-zA-Z0-9_-]+$/.test(item.id || '') || ids.has(item.id)) throw new Error('Identificador inválido ou repetido.');\n    ids.add(item.id);\n}\nfor (const table of b.cfg_tabelas_extras) if (!Array.isArray(table.colunas) || !table.colunas.length || table.colunas.some(c=>typeof c!=='string')) throw new Error('Colunas inválidas.');\nif (!Number.isInteger(b.max_folgantes) || b.max_folgantes < 0) throw new Error('Limite inválido.');\nfor (const key of ['cor_primaria','cor_secundaria','cor_alerta']) if (!/^#[0-9a-f]{6}$/i.test(b[key] || '')) throw new Error('Cor inválida.');\nreturn [{json:$json}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2224,
+        11184
+      ],
+      "name": "Atual | Validar Config",
+      "id": "bec628e6-7e87-437a-86f4-01e31eb23eac"
+    },
+    {
+      "parameters": {
+        "path": "buscar-rascunho",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        11408
+      ],
+      "id": "3427e12c-b678-4a3e-be8f-a95b84fbe41b",
+      "name": "Atual | GET Rascunho",
+      "webhookId": "581ceae7-9860-49b3-a584-5e42a5c6821f"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT data_escala, payload, updated_at FROM public.escala_rascunhos WHERE data_escala=$1::date LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [$json.query.data] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -2224,
+        11408
+      ],
+      "id": "279607ed-7c2d-44d6-854f-0adc1b491554",
+      "name": "Atual | DB GET Rascunho",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().some(i=>i.json.error) ? {status:'erro',mensagem:'Falha ao consultar o rascunho.'} : ($input.all().map(i=>i.json).find(i=>i.data_escala) || {status:'vazio'}) }}",
+        "options": {
+          "responseCode": "={{ $input.all().some(i=>i.json.error) ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -2000,
+        11408
+      ],
+      "id": "9d6e4c92-aa7c-4f1c-91e3-e14cc61a406a",
+      "name": "Atual | Res GET Rascunho"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "salvar-rascunho",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        11632
+      ],
+      "id": "3dc700b1-d59c-4dd6-891b-a69422bb443e",
+      "name": "Atual | POST Rascunho",
+      "webhookId": "728e2ced-7ba4-42ae-bc8f-d071515e6c2d"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b=$json.body;\nconst validDate=value=>/^\\d{4}-\\d{2}-\\d{2}$/.test(value||'')&&!Number.isNaN(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;\nif (!b || !validDate(b.data_escala)) throw new Error('Data inválida.');\nif (!b.payload || typeof b.payload !== 'object' || Array.isArray(b.payload) || b.payload.data_escala !== b.data_escala) throw new Error('Rascunho inválido.');\nif (!b.payload.json_layout || !Array.isArray(b.payload.json_layout.turnos) || !Array.isArray(b.payload.json_layout.tabelas)) throw new Error('Layout do rascunho inválido.');\nif (Buffer.byteLength(JSON.stringify(b.payload), 'utf8') > 250000) throw new Error('Rascunho excede o limite permitido.');\nreturn [{json:$json}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2224,
+        11632
+      ],
+      "id": "52831b13-0d12-4198-8504-87a99a7d1cc1",
+      "name": "Atual | Validar Rascunho"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.escala_rascunhos (data_escala,payload,updated_at) VALUES ($1::date,$2::jsonb,clock_timestamp()) ON CONFLICT (data_escala) DO UPDATE SET payload=EXCLUDED.payload,updated_at=EXCLUDED.updated_at RETURNING data_escala,payload,updated_at;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.data_escala, JSON.stringify($json.body.payload)] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -2000,
+        11632
+      ],
+      "id": "d5f8a0bc-40b7-4cd4-bb70-a66b88cb5b67",
+      "name": "Atual | DB POST Rascunho",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Não foi possível salvar o rascunho no banco.'} : {status:'ok',saved:$json} }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -1776,
+        11632
+      ],
+      "id": "a38a1333-796f-4786-9976-13745bb6ff60",
+      "name": "Atual | Res POST Rascunho"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "excluir-rascunho",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -2448,
+        11856
+      ],
+      "id": "cf12ec97-7300-404f-beb1-db2c307776f0",
+      "name": "Atual | DELETE Rascunho",
+      "webhookId": "3ac3f35f-68f3-4fb7-86d0-af66f625f918"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM public.escala_rascunhos WHERE data_escala=$1::date RETURNING data_escala;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.data_escala] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -2224,
+        11856
+      ],
+      "id": "bd356d31-58e2-443e-be37-1ec1f6a35b81",
+      "name": "Atual | DB DELETE Rascunho",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Não foi possível excluir o rascunho.'} : {status:'ok'} }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -2000,
+        11856
+      ],
+      "id": "92cc4e58-18b1-416d-9a83-ad796a233526",
+      "name": "Atual | Res DELETE Rascunho"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "5x2-gerar-escala",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        9840
+      ],
+      "id": "ad6902c0-51b1-4f01-b36f-5d8fcd782de3",
+      "name": "5x2 | Webhook Receiver",
+      "webhookId": "23c9ca4c-37d1-4795-ba15-01bd512b54bf"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH saved AS (\n    INSERT INTO public.escalas_5x2 AS atual (\n        data_escala, turno_06h, turno_08h, turno_11h, turno_12h40,\n        fiscais, folgas, observacoes, json_excecoes_horario, json_tabelas_extras,\n        json_turnos, json_layout, save_request_id, jovem_aprendiz, escala_app, ultima_atualizacao\n    ) VALUES (\n        $1::date, $2, $3, $4, $5, $6, $7, $8, $9, $10,\n        $11::jsonb, $12::jsonb, $13, '', '', clock_timestamp()\n    )\n    ON CONFLICT (data_escala) DO UPDATE SET\n        turno_06h=EXCLUDED.turno_06h, turno_08h=EXCLUDED.turno_08h,\n        turno_11h=EXCLUDED.turno_11h, turno_12h40=EXCLUDED.turno_12h40,\n        fiscais=EXCLUDED.fiscais, folgas=EXCLUDED.folgas, observacoes=EXCLUDED.observacoes,\n        json_excecoes_horario=EXCLUDED.json_excecoes_horario,\n        json_tabelas_extras=EXCLUDED.json_tabelas_extras,\n        json_turnos=EXCLUDED.json_turnos, json_layout=EXCLUDED.json_layout,\n        ultima_atualizacao=CASE WHEN atual.save_request_id=EXCLUDED.save_request_id\n            THEN atual.ultima_atualizacao ELSE EXCLUDED.ultima_atualizacao END,\n        save_request_id=EXCLUDED.save_request_id\n    WHERE atual.save_request_id=EXCLUDED.save_request_id\n        OR date_trunc('milliseconds', atual.ultima_atualizacao) = $14::timestamptz\n    RETURNING *\n)\nSELECT CASE WHEN EXISTS(SELECT 1 FROM saved) THEN 'sucesso' ELSE 'conflito' END AS status,\n    (SELECT to_jsonb(saved) FROM saved) AS saved;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.data_escala,\n    $json.body.json_turnos.t_06 || '', $json.body.json_turnos.t_08 || '',\n    $json.body.json_turnos.t_11 || '', $json.body.json_turnos.t_12 || '',\n    $json.body.fiscais || '', $json.body.folgas || '', $json.body.observacoes || '',\n    $json.body.json_excecoes_horario || '[]', $json.body.json_tabelas_extras || '{}',\n    JSON.stringify($json.body.json_turnos), JSON.stringify($json.body.json_layout),\n    $json.body.save_request_id, $json.body.expected_updated_at || null] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        400,
+        9840
+      ],
+      "id": "dddbf280-8a27-4b7e-a94f-8025c51a835e",
+      "name": "5x2 | store",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Falha ao gravar no banco. Tente novamente; o rascunho permanece no navegador.'} : ($json.status === 'sucesso' ? $json : {status:'conflito',mensagem:'A escala mudou no servidor. Atualize a consulta antes de sobrescrever.'}) }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : ($json.status === 'sucesso' ? 200 : 409) }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        624,
+        9840
+      ],
+      "id": "7214b255-ffd6-495d-bc71-69f48664c369",
+      "name": "5x2 | Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "path": "5x2-buscar-escala",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        10064
+      ],
+      "id": "c4f8f929-c7c4-4d9f-b295-17b9a725e96b",
+      "name": "5x2 | Webhook Busca",
+      "webhookId": "122cf0ba-8bd1-4f30-8672-da26ca9c62e8"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM public.escalas_5x2\nWHERE ($1::date IS NOT NULL AND data_escala=$1::date)\n   OR ($1::date IS NULL AND $2::text IS NOT NULL\n       AND data_escala >= ($2 || '-01')::date\n       AND data_escala < (($2 || '-01')::date + INTERVAL '1 month'))\nORDER BY data_escala ASC;",
+        "options": {
+          "queryReplacement": "={{ [$json.query.data || null, $json.query.mes || null] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        176,
+        10064
+      ],
+      "id": "494b0dcb-31cc-42c4-8b15-2e65eb95c860",
+      "name": "5x2 | Buscar no Supabase",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().some(i=>i.json.error) ? {status:'erro',mensagem:'Falha ao consultar o banco. Tente novamente.'} : $input.all().map(i=>i.json).filter(i=>i.data_escala) }}",
+        "options": {
+          "responseCode": "={{ $input.all().some(i=>i.json.error) ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        400,
+        10064
+      ],
+      "id": "d99f0526-ea6b-4f8c-9341-98d55ac7ebaa",
+      "name": "5x2 | Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "path": "5x2-buscar-funcionarios",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        10288
+      ],
+      "name": "5x2 | GET Funcionarios",
+      "id": "64f79057-407c-41e3-aceb-38506856739c",
+      "webhookId": "bec3eb53-73e4-49a2-b9f7-9251e4ebd4a2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM public.funcionarios ORDER BY nome ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        176,
+        10288
+      ],
+      "name": "5x2 | DB GET",
+      "id": "4dfeba65-437e-43b1-a82a-4e39a255b811",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().some(i=>i.json.error) ? {status:'erro',mensagem:'Falha ao consultar o banco. Tente novamente.'} : $input.all().map(i=>i.json).filter(i=>i.id) }}",
+        "options": {
+          "responseCode": "={{ $input.all().some(i=>i.json.error) ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        400,
+        10288
+      ],
+      "name": "5x2 | Res GET",
+      "id": "d8aa9409-572f-4b1a-aa5b-bd28bcf7bc87"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "5x2-salvar-funcionario",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        10512
+      ],
+      "name": "5x2 | POST Funcionario",
+      "id": "078ee954-b894-4991-a604-e49e6eab4525",
+      "webhookId": "0bbb2034-1aca-40c5-b000-abda5eb81c17"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.funcionarios (\n    id, nome, cor, alerta, folga_fixa, ciclo_dias, ciclo_data_base,\n    folgas_extras, json_excecoes, ferias_ini, ferias_fim, data_limite\n) VALUES ($1,$2,$3,$4,$5,$6,$7::date,$8,$9,$10::date,$11::date,$12::date)\nON CONFLICT (id) DO UPDATE SET\n    nome=EXCLUDED.nome, cor=EXCLUDED.cor, alerta=EXCLUDED.alerta,\n    folga_fixa=EXCLUDED.folga_fixa, ciclo_dias=EXCLUDED.ciclo_dias,\n    ciclo_data_base=EXCLUDED.ciclo_data_base, folgas_extras=EXCLUDED.folgas_extras,\n    json_excecoes=EXCLUDED.json_excecoes, ferias_ini=EXCLUDED.ferias_ini,\n    ferias_fim=EXCLUDED.ferias_fim, data_limite=EXCLUDED.data_limite\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.id, $json.body.nome, $json.body.cor,\n    typeof $json.body.alerta === 'object' ? JSON.stringify($json.body.alerta) : $json.body.alerta,\n    $json.body.folga_fixa || null, $json.body.ciclo_dias || null,\n    $json.body.ciclo_data_base || null, $json.body.folgas_extras || null,\n    $json.body.json_excecoes || null, $json.body.ferias_ini || null,\n    $json.body.ferias_fim || null, $json.body.data_limite || null] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        176,
+        10512
+      ],
+      "name": "5x2 | DB POST",
+      "id": "233c10ba-8a78-485f-9a41-437f73d5e15d",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Falha ao gravar no banco.'} : {status:'ok'} }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        400,
+        10512
+      ],
+      "name": "5x2 | Res POST",
+      "id": "618170aa-2dc9-4a50-bb86-e45285ed9f94"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "5x2-excluir-funcionario",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        10736
+      ],
+      "name": "5x2 | DELETE Funcionario",
+      "id": "407adc21-4558-497d-804c-009e735c7676",
+      "webhookId": "01dc7af5-d78e-4ebc-a75e-1ef0cc7aa745"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM public.funcionarios WHERE id=$1 RETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.id] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        176,
+        10736
+      ],
+      "name": "5x2 | DB DELETE",
+      "id": "28d34cea-570a-4333-abb8-2d5ae3146b9f",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Falha ao gravar no banco.'} : {status:'ok'} }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        400,
+        10736
+      ],
+      "name": "5x2 | Res DELETE",
+      "id": "217286cb-2923-4d36-8ab5-1082e91dc785"
+    },
+    {
+      "parameters": {
+        "path": "5x2-buscar-configuracoes",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        10960
+      ],
+      "id": "157fe5d6-8cf9-4476-bf4c-6b564c786c83",
+      "name": "5x2 | GET Config",
+      "webhookId": "76791770-9b12-42bd-99e8-726da4743608"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM public.configuracoes_5x2 WHERE id='global' LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        176,
+        10960
+      ],
+      "id": "2a1ab1ff-6859-4972-8da6-66099f3900e0",
+      "name": "5x2 | DB GET Config",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().some(i=>i.json.error) ? {status:'erro',mensagem:'Falha ao consultar o banco. Tente novamente.'} : $input.all().map(i=>i.json).filter(i=>i.id) }}",
+        "options": {
+          "responseCode": "={{ $input.all().some(i=>i.json.error) ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        400,
+        10960
+      ],
+      "id": "5b4d6aaa-4722-4baa-915e-9a644ec0fd9b",
+      "name": "5x2 | Res GET Config"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "5x2-salvar-configuracoes",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        11184
+      ],
+      "id": "0bcf54d9-4ad0-493c-bc09-03b0c3afae40",
+      "name": "5x2 | POST Config",
+      "webhookId": "4564bc9b-d3ab-49c8-98c0-1682bca29b2e"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.configuracoes_5x2 (\n    id,modo_limite,max_folgantes,trava_estrita,cor_primaria,cor_secundaria,cor_alerta,\n    cfg_turnos,cfg_tabelas_extras,cfg_fiscais_padrao,cfg_excecoes_padrao,cfg_alertas,updated_at\n) VALUES ('global',$1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10::jsonb,$11::jsonb,NOW())\nON CONFLICT (id) DO UPDATE SET\n    modo_limite=EXCLUDED.modo_limite,max_folgantes=EXCLUDED.max_folgantes,\n    trava_estrita=EXCLUDED.trava_estrita,cor_primaria=EXCLUDED.cor_primaria,\n    cor_secundaria=EXCLUDED.cor_secundaria,cor_alerta=EXCLUDED.cor_alerta,\n    cfg_turnos=EXCLUDED.cfg_turnos,cfg_tabelas_extras=EXCLUDED.cfg_tabelas_extras,\n    cfg_fiscais_padrao=EXCLUDED.cfg_fiscais_padrao,cfg_excecoes_padrao=EXCLUDED.cfg_excecoes_padrao,\n    cfg_alertas=EXCLUDED.cfg_alertas,updated_at=NOW()\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.modo_limite, $json.body.max_folgantes, $json.body.trava_estrita,\n    $json.body.cor_primaria, $json.body.cor_secundaria, $json.body.cor_alerta,\n    JSON.stringify($json.body.cfg_turnos), JSON.stringify($json.body.cfg_tabelas_extras),\n    JSON.stringify($json.body.cfg_fiscais_padrao), JSON.stringify($json.body.cfg_excecoes_padrao),\n    JSON.stringify($json.body.cfg_alertas || {})] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        400,
+        11184
+      ],
+      "id": "2fe5cd71-2289-4c0c-8d8a-c8d707d8bd98",
+      "name": "5x2 | DB POST Config",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Falha ao gravar no banco.'} : {status:'ok'} }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        624,
+        11184
+      ],
+      "id": "769d5ffb-31c5-4fd7-bc93-77029eb7c508",
+      "name": "5x2 | Res POST Config"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body;\nif (!body || typeof body !== 'object') throw new Error('Dados da escala ausentes.');\nconst validDate = value => /^\\d{4}-\\d{2}-\\d{2}$/.test(value || '') &&\n    !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;\nif (!validDate(body.data_escala)) throw new Error('Data inválida.');\nif (!body.save_request_id || !/^[\\w-]{8,100}$/.test(body.save_request_id)) throw new Error('Identificador do envio inválido.');\nif (!body.json_turnos || Array.isArray(body.json_turnos) || typeof body.json_turnos !== 'object') throw new Error('Turnos ausentes.');\nif (!body.json_layout || !Array.isArray(body.json_layout.turnos) || !Array.isArray(body.json_layout.tabelas)) throw new Error('Layout ausente.');\nconst parse = (value, fallback) => typeof value === 'string' ? JSON.parse(value) : value || fallback;\nconst normalize = n => String(n).normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').trim().toLowerCase();\nconst allocated = new Set();\nconst add = value => {\n    String(value || '').split(',').filter(n=>n.trim()).forEach(n=> {\n        const key=normalize(n); if (allocated.has(key)) throw new Error('Colaborador duplicado: '+n);\n        allocated.add(key);\n    });\n};\nfor (const [id,names] of Object.entries(body.json_turnos)) {\n    if (!/^t_[a-zA-Z0-9_-]+$/.test(id) || typeof names !== 'string') throw new Error('Turno inválido.');\n    add(names);\n}\nadd(body.folgas);\nString(body.fiscais || '').split('||').filter(Boolean).forEach(row => add(row.split('|')[0]));\nconst extra = parse(body.json_tabelas_extras, {});\nfor (const table of body.json_layout.tabelas) {\n    if (!/^tbl_[a-zA-Z0-9_-]+$/.test(table.id) || !Array.isArray(table.colunas) || !table.colunas.length) throw new Error('Tabela inválida.');\n    if (!Array.isArray(extra[table.id] || [])) throw new Error('Linhas inválidas.');\n    for (const row of extra[table.id] || []) add(row[table.colunas[0]]);\n}\nfor (const turno of body.json_layout.turnos) {\n    if (!/^t_[a-zA-Z0-9_-]+$/.test(turno.id)) throw new Error('ID de turno inválido.');\n}\nif (body.expected_updated_at && Number.isNaN(Date.parse(body.expected_updated_at))) throw new Error('Versão base inválida.');\nconst exceptions = parse(body.json_excecoes_horario, []);\nif (!Array.isArray(exceptions)) throw new Error('Exceções inválidas.');\nreturn [{json: {...$json, body: {...body,\n    json_excecoes_horario:JSON.stringify(exceptions), json_tabelas_extras:JSON.stringify(extra)}}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        9840
+      ],
+      "name": "5x2 | Validar Escala",
+      "id": "57512c4f-3d2e-434b-a767-8e8a61375f53"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b=$json.body;\nif (!b || !Array.isArray(b.cfg_turnos) || !Array.isArray(b.cfg_tabelas_extras) || !Array.isArray(b.cfg_fiscais_padrao) || !Array.isArray(b.cfg_excecoes_padrao)) throw new Error('Configuração inválida.');\nconst ids=new Set();\nfor (const item of [...b.cfg_turnos,...b.cfg_tabelas_extras]) {\n    if (!/^(t|tbl)_[a-zA-Z0-9_-]+$/.test(item.id || '') || ids.has(item.id)) throw new Error('Identificador inválido ou repetido.');\n    ids.add(item.id);\n}\nfor (const table of b.cfg_tabelas_extras) if (!Array.isArray(table.colunas) || !table.colunas.length || table.colunas.some(c=>typeof c!=='string')) throw new Error('Colunas inválidas.');\nif (!Number.isInteger(b.max_folgantes) || b.max_folgantes < 0) throw new Error('Limite inválido.');\nfor (const key of ['cor_primaria','cor_secundaria','cor_alerta']) if (!/^#[0-9a-f]{6}$/i.test(b[key] || '')) throw new Error('Cor inválida.');\nreturn [{json:$json}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        11184
+      ],
+      "name": "5x2 | Validar Config",
+      "id": "71b8eae9-c788-4bdd-8a94-baa9cdb5c2d9"
+    },
+    {
+      "parameters": {
+        "path": "5x2-buscar-rascunho",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        11408
+      ],
+      "id": "8b405ae5-1730-4598-8818-d8a8cffdeea8",
+      "name": "5x2 | GET Rascunho",
+      "webhookId": "2405ddc0-0235-4532-927d-6213aaea2557"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT data_escala, payload, updated_at FROM public.rascunhos_5x2 WHERE data_escala=$1::date LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ [$json.query.data] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        176,
+        11408
+      ],
+      "id": "6cc6df4b-a9ed-4d48-a831-83fbdf9b64b9",
+      "name": "5x2 | DB GET Rascunho",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $input.all().some(i=>i.json.error) ? {status:'erro',mensagem:'Falha ao consultar o rascunho.'} : ($input.all().map(i=>i.json).find(i=>i.data_escala) || {status:'vazio'}) }}",
+        "options": {
+          "responseCode": "={{ $input.all().some(i=>i.json.error) ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        400,
+        11408
+      ],
+      "id": "cd0496cc-df24-4b4e-9736-14344942e854",
+      "name": "5x2 | Res GET Rascunho"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "5x2-salvar-rascunho",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        11632
+      ],
+      "id": "21221d72-66ca-4a67-bc5c-c8ae730b661a",
+      "name": "5x2 | POST Rascunho",
+      "webhookId": "0e2e6968-b350-43f1-a14b-50bb353e0b05"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b=$json.body;\nconst validDate=value=>/^\\d{4}-\\d{2}-\\d{2}$/.test(value||'')&&!Number.isNaN(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;\nif (!b || !validDate(b.data_escala)) throw new Error('Data inválida.');\nif (!b.payload || typeof b.payload !== 'object' || Array.isArray(b.payload) || b.payload.data_escala !== b.data_escala) throw new Error('Rascunho inválido.');\nif (!b.payload.json_layout || !Array.isArray(b.payload.json_layout.turnos) || !Array.isArray(b.payload.json_layout.tabelas)) throw new Error('Layout do rascunho inválido.');\nif (Buffer.byteLength(JSON.stringify(b.payload), 'utf8') > 250000) throw new Error('Rascunho excede o limite permitido.');\nreturn [{json:$json}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        11632
+      ],
+      "id": "c76d5835-a841-4750-aead-ba370906f83f",
+      "name": "5x2 | Validar Rascunho"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.rascunhos_5x2 (data_escala,payload,updated_at) VALUES ($1::date,$2::jsonb,clock_timestamp()) ON CONFLICT (data_escala) DO UPDATE SET payload=EXCLUDED.payload,updated_at=EXCLUDED.updated_at RETURNING data_escala,payload,updated_at;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.data_escala, JSON.stringify($json.body.payload)] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        400,
+        11632
+      ],
+      "id": "bbcf052c-c0b3-4cc0-adb6-66f0b8e48203",
+      "name": "5x2 | DB POST Rascunho",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Não foi possível salvar o rascunho no banco.'} : {status:'ok',saved:$json} }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        624,
+        11632
+      ],
+      "id": "7320aacd-5c9b-43e5-a24d-ee26112b0f94",
+      "name": "5x2 | Res POST Rascunho"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "5x2-excluir-rascunho",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        },
+        "authentication": "none"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        11856
+      ],
+      "id": "b85a187a-20a8-4053-aef0-af2aa752766c",
+      "name": "5x2 | DELETE Rascunho",
+      "webhookId": "1f8a3c7d-dd60-493b-9f08-064b5fbd6a3f"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM public.rascunhos_5x2 WHERE data_escala=$1::date RETURNING data_escala;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.data_escala] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        176,
+        11856
+      ],
+      "id": "0e3cd7d3-ad15-4c9b-8c69-03b3a968d5e7",
+      "name": "5x2 | DB DELETE Rascunho",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "UEdFI05eeTbTYtgP",
+          "name": "pessoal_supab"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.error ? {status:'erro',mensagem:'Não foi possível excluir o rascunho.'} : {status:'ok'} }}",
+        "options": {
+          "responseCode": "={{ $json.error ? 500 : 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        400,
+        11856
+      ],
+      "id": "7ec4ff26-601b-4eb7-a6f5-60b1436b445b",
+      "name": "5x2 | Res DELETE Rascunho"
+    }
+  ],
+  "connections": {
+    "Atual | Webhook Receiver": {
+      "main": [
+        [
+          {
+            "node": "Atual | Validar Escala",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | store": {
+      "main": [
+        [
+          {
+            "node": "Atual | Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | Webhook Busca": {
+      "main": [
+        [
+          {
+            "node": "Atual | Buscar no Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | Buscar no Supabase": {
+      "main": [
+        [
+          {
+            "node": "Atual | Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | GET Funcionarios": {
+      "main": [
+        [
+          {
+            "node": "Atual | DB GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | DB GET": {
+      "main": [
+        [
+          {
+            "node": "Atual | Res GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | POST Funcionario": {
+      "main": [
+        [
+          {
+            "node": "Atual | DB POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | DB POST": {
+      "main": [
+        [
+          {
+            "node": "Atual | Res POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | DELETE Funcionario": {
+      "main": [
+        [
+          {
+            "node": "Atual | DB DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | DB DELETE": {
+      "main": [
+        [
+          {
+            "node": "Atual | Res DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | GET Config": {
+      "main": [
+        [
+          {
+            "node": "Atual | DB GET Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | DB GET Config": {
+      "main": [
+        [
+          {
+            "node": "Atual | Res GET Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | POST Config": {
+      "main": [
+        [
+          {
+            "node": "Atual | Validar Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | DB POST Config": {
+      "main": [
+        [
+          {
+            "node": "Atual | Res POST Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | Validar Escala": {
+      "main": [
+        [
+          {
+            "node": "Atual | store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | Validar Config": {
+      "main": [
+        [
+          {
+            "node": "Atual | DB POST Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | GET Rascunho": {
+      "main": [
+        [
+          {
+            "node": "Atual | DB GET Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | DB GET Rascunho": {
+      "main": [
+        [
+          {
+            "node": "Atual | Res GET Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | POST Rascunho": {
+      "main": [
+        [
+          {
+            "node": "Atual | Validar Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | Validar Rascunho": {
+      "main": [
+        [
+          {
+            "node": "Atual | DB POST Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | DB POST Rascunho": {
+      "main": [
+        [
+          {
+            "node": "Atual | Res POST Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | DELETE Rascunho": {
+      "main": [
+        [
+          {
+            "node": "Atual | DB DELETE Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Atual | DB DELETE Rascunho": {
+      "main": [
+        [
+          {
+            "node": "Atual | Res DELETE Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | Webhook Receiver": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Validar Escala",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | store": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | Webhook Busca": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Buscar no Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | Buscar no Supabase": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | GET Funcionarios": {
+      "main": [
+        [
+          {
+            "node": "5x2 | DB GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | DB GET": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Res GET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | POST Funcionario": {
+      "main": [
+        [
+          {
+            "node": "5x2 | DB POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | DB POST": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Res POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | DELETE Funcionario": {
+      "main": [
+        [
+          {
+            "node": "5x2 | DB DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | DB DELETE": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Res DELETE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | GET Config": {
+      "main": [
+        [
+          {
+            "node": "5x2 | DB GET Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | DB GET Config": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Res GET Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | POST Config": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Validar Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | DB POST Config": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Res POST Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | Validar Escala": {
+      "main": [
+        [
+          {
+            "node": "5x2 | store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | Validar Config": {
+      "main": [
+        [
+          {
+            "node": "5x2 | DB POST Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | GET Rascunho": {
+      "main": [
+        [
+          {
+            "node": "5x2 | DB GET Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | DB GET Rascunho": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Res GET Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | POST Rascunho": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Validar Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | Validar Rascunho": {
+      "main": [
+        [
+          {
+            "node": "5x2 | DB POST Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | DB POST Rascunho": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Res POST Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | DELETE Rascunho": {
+      "main": [
+        [
+          {
+            "node": "5x2 | DB DELETE Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5x2 | DB DELETE Rascunho": {
+      "main": [
+        [
+          {
+            "node": "5x2 | Res DELETE Rascunho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

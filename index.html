@@ -586,6 +586,7 @@
                         </select>
                     </div>
                 </div>
+                <div><label>Regra de escala (modo 5×2)</label><select id="input_nova_tbl_regra"><option value="5x2">Seguir o 5×2 (turmas e domingos)</option><option value="propria">Seguir regras próprias do colaborador</option></select></div>
                 <button type="button" class="btn-action" style="margin-top:10px; width:100%; justify-content:center; background:#2563eb;" onclick="addTabelaExtraConfigUI()">➕ Criar Tabela Extra</button>
             </div>
             <div id="containerConfigTabelasExtrasLista" style="display:flex; flex-direction:column; gap:8px; margin-bottom:15px;"></div>
@@ -603,7 +604,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="modo-5x2.js?v=20261108-aprendizes"></script>
+    <script src="modo-5x2.js?v=20261108-regras-tabelas"></script>
     <script src="app-reliability.js?v=20261108-modos"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
@@ -829,6 +830,7 @@
             }
 
             if (MODO_5X2 && estadoEscala.configCarregada) alertasConfig.turmas5x2 = parseJSONField(configObj?.cfg_alertas,{})?.turmas5x2 || [];
+            tabelasExtrasConfig=tabelasExtrasConfig.map(t=>({...t,regraEscala:regraTabelaExtra(t)}));
             validarLayout({turnos:turnosConfig,tabelas:tabelasExtrasConfig});
             if (estadoEscala.configCarregada) {
                 gravarLocal('cfg_turnos_dinamicos',JSON.stringify(turnosConfig));
@@ -2767,7 +2769,8 @@
             if (!titulo || !colunasStr) return alert('Preencha o Título e as Colunas!');
             const colunas = colunasStr.split(',').map(c => c.trim()).filter(c=>c);
             const id = 'tbl_' + Date.now();
-            tabelasExtrasConfig.push({ id, titulo, colunas, contarLimite, defaultRows: [] });
+            const regraEscala=document.getElementById('input_nova_tbl_regra').value;
+            tabelasExtrasConfig.push({ id, titulo, colunas, contarLimite, regraEscala, defaultRows: [] });
             
             document.getElementById('input_nova_tbl_titulo').value = ''; 
             document.getElementById('input_nova_tbl_colunas').value = '';
@@ -2800,6 +2803,7 @@
                                 </select>
                             </div>
                         </div>
+                        <div><label>Regra de escala (modo 5×2)</label><select id="edit_tbl_regra_${t.id}"><option value="5x2" ${regraTabelaExtra(t)==='5x2'?'selected':''}>Seguir o 5×2 (turmas e domingos)</option><option value="propria" ${regraTabelaExtra(t)==='propria'?'selected':''}>Seguir regras próprias do colaborador</option></select></div>
                         <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:4px;">
                             <button type="button" class="btn-action" style="background:#64748b; font-size:0.8rem; padding:6px 12px;" onclick="cancelarEdicaoTabelaExtraConfigUI()">Cancelar</button>
                             <button type="button" class="btn-action" style="background:#2563eb; font-size:0.8rem; padding:6px 12px;" onclick="salvarEdicaoTabelaExtraConfigUI('${t.id}')">💾 Confirmar Alteração</button>
@@ -2811,7 +2815,7 @@
                 return `
                 <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px; border-radius:6px; border:1px solid #cbd5e1;">
                     <div>
-                        <strong>${escapeHTML(t.titulo)}</strong> ${badgeLimite}
+                        <strong>${escapeHTML(t.titulo)}</strong> ${badgeLimite}<div>Regra: ${regraTabelaExtra(t)==='propria'?'Própria do colaborador':'5×2 — turmas e domingos'}</div>
                         <div style="font-size:12px; color:#64748b;">Colunas: ${escapeHTML(t.colunas.join(', '))}</div>
                     </div>
                     <div style="display:flex; gap:6px;">
@@ -2832,6 +2836,7 @@
             const novoTitulo = document.getElementById(`edit_tbl_titulo_${id}`)?.value.trim().toUpperCase();
             const novasColunasStr = document.getElementById(`edit_tbl_colunas_${id}`)?.value.trim().toUpperCase();
             const novoLimite = document.getElementById(`edit_tbl_limite_${id}`)?.value;
+            tbl.regraEscala=document.getElementById(`edit_tbl_regra_${id}`).value;
 
             if (!novoTitulo || !novasColunasStr) return alert('Preencha o Título e as Colunas!');
 

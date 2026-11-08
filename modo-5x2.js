@@ -15,7 +15,11 @@ function turmasNaData(data) {
 }
 function turmaColaborador(func,data) { return turmasNaData(data).find(t=>t.membros.includes(String(func.id))); }
 function pertenceAoModo(func,data) { return !MODO_5X2 || !!turmaColaborador(func,data); }
-function tabelaJovemAprendiz(tabela) { return /\b(jovem aprendiz|jovens aprendizes)\b/.test(normalizeStr(tabela?.titulo || '')); }
+function regraTabelaExtra(tabela) {
+    if (['5x2','propria'].includes(tabela?.regraEscala)) return tabela.regraEscala;
+    return /\b(jovem aprendiz|jovens aprendizes)\b/.test(normalizeStr(tabela?.titulo || '')) ? 'propria' : '5x2';
+}
+function tabelaJovemAprendiz(tabela) { return !!tabela && regraTabelaExtra(tabela)==='propria'; }
 function nomesAprendizesConfigurados() {
     return tabelasExtrasConfig.filter(tabelaJovemAprendiz).flatMap(t=>[
         ...(t.defaultRows || []).map(row=>row[t.colunas[0]]),

@@ -603,7 +603,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="modo-5x2.js?v=20261108"></script>
+    <script src="modo-5x2.js?v=20261108-cadastro"></script>
     <script src="app-reliability.js?v=20261108-modos"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
@@ -2174,6 +2174,7 @@
         }
 
         function renderModalCheckboxes() {
+            if (modalMode === 'turma5x2') { renderizarSeletorTurma(); return; }
             const hiddenInput = document.getElementById(modalTargetInput);
             if (!hiddenInput) return;
             const selecionadosAqui = hiddenInput.value ? hiddenInput.value.split(',').map(n => normalizeStr(n)) : [];
@@ -2250,6 +2251,7 @@
         }
 
         function confirmMultiSelect() {
+            if (modalMode === 'turma5x2') { confirmarSeletorTurma(); return; }
             const selected = [...document.querySelectorAll('#modalCheckboxesList input:checked')].map(el=>el.value);
             const target = document.getElementById(modalTargetInput);
             if (!target) return;

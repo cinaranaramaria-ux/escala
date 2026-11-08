@@ -12,6 +12,8 @@ O frontend oferece `inicio.html` para escolher o modo. O link antigo continua ab
 7. Confirmar primeiro uma gravação e consulta 5×2 em uma data de teste, conferindo também que a escala atual da mesma data continua intacta. Depois utilizar a geração mensal.
 
 ## Separação e vigência
+- Em cada turma, use “Selecionar participantes” com busca. Informe o domingo de folga de referência de cada pessoa; o próximo será 28 dias depois. A semana é segunda–domingo; A mantém quinta e B sexta na semana de domingo livre. Sem referência individual, o ciclo de domingos não é ativado.
+- O cadastro compartilhado é consultado pelo endpoint `5x2-buscar-funcionarios` do workflow novo, que lê a mesma tabela `public.funcionarios`. Isso dispensa a rota antiga no modo 5×2. Se houver CORS/404, confirmar que o workflow novo está publicado; a alteração não requer migração adicional.
 - Escalas, rascunhos, configurações/padrões e cache são próprios de cada modo. Sem os novos endpoints, o 5×2 informa que não está conectado; não tenta gravar no modo atual.
 - Colaboradores, férias e ausências continuam compartilhados. Folgas fixas/de ciclo e extras do cadastro atual não são aplicadas ao 5×2: as folgas semanais vêm das turmas. Feriados e opções de cada modo ficam na configuração daquele modo.
 - Cada salvamento de turmas cria uma versão com data de início. A regra mais recente com início anterior ou igual à data da escala é usada. Alterar a mesma vigência pede confirmação. Escalas já salvas nunca são regeneradas por essa ação.

@@ -6,6 +6,8 @@ Estado: em andamento (implementado e testado localmente; instalação do backend
 Escolher entre o modo atual e o modo 5×2, com turmas de folgas semanais editáveis e sem mistura de escalas, rascunhos ou padrões.
 
 ## Escopo
+- Ciclo individual de domingo: três trabalhados e quarto de folga, a cada 28 dias a partir de um domingo de folga cadastrado por participante. Semana de segunda a domingo; na semana de domingo livre, A fica com quinta/domingo e B sexta/domingo. Outras turmas escolhem o dia semanal mantido.
+- Participantes selecionados no modal compartilhado com busca; transferências entre turmas pedem confirmação.
 - Turma A inicia com folgas terça e quinta; turma B com quarta e sexta.
 - Criar outras turmas, alterar nomes e selecionar exatamente dois dias distintos de folga.
 - Selecionar membros pelo cadastro compartilhado de colaboradores, sem duplicação entre turmas na mesma vigência.

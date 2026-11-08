@@ -3025,10 +3025,18 @@
             await carregarEscalaContainer('historicoContainer',data);
         }
 
-        function prepararEdicao(dadosCod) {
+        async function prepararEdicao(dadosCod) {
             let d = JSON.parse(decodeURIComponent(dadosCod));
             if (Array.isArray(d)) d = d[0];
             if (estadoEscala.pendente && !confirm('Abrir esta escala e substituir o formulário? O rascunho atual fica guardado por data.')) return;
+            let turnosAtuais;
+            try {
+                const resposta=await requestJSON(N8N_GET_CONFIG);
+                const config=Array.isArray(resposta)?resposta[0]:resposta;
+                turnosAtuais=parseJSONField(config?.cfg_turnos,null);
+                if (!Array.isArray(turnosAtuais)) throw new Error('Configuração atual de turnos indisponível.');
+                validarLayout({turnos:turnosAtuais,tabelas:[]});
+            } catch(e) { alert(`Não foi possível abrir a edição com os horários atuais. ${e.message} Tente novamente.`); return; }
             if (estadoEscala.pendente) salvarRascunhoFormulario();
             modoEdicao = true;
             estadoEscala.versaoBase = d.ultima_atualizacao || null;
@@ -3037,7 +3045,11 @@
             estadoEscala.conflito = null;
             const savedLayout = parseJSONField(d.json_layout, {});
             if (savedLayout.turnos || savedLayout.tabelas) validarLayout(savedLayout);
-            if (Array.isArray(savedLayout.turnos)) turnosConfig = savedLayout.turnos;
+            if (Array.isArray(savedLayout.turnos)) turnosConfig = savedLayout.turnos.map(t=>{
+                const atual=turnosAtuais.find(a=>a.id===t.id);
+                return atual ? {...t,nome:atual.nome,ent:atual.ent,int:atual.int,sai:atual.sai,periodo:atual.periodo} : t;
+            });
+            else turnosConfig=turnosAtuais;
             if (Array.isArray(savedLayout.tabelas)) tabelasExtrasConfig = savedLayout.tabelas;
             gerarCamposFormularioEscala();
             const savedTurnos = parseJSONField(d.json_turnos, {});

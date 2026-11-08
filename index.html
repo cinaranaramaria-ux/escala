@@ -136,10 +136,17 @@
     </style>
 <!-- </BLOCO_CSS_ESTILOS> -->
 
-<link rel="stylesheet" href="escala.css?v=20261022-folgas-espacamento">
+<link rel="stylesheet" href="escala.css?v=20261108-modos">
 </head>
 <body>
     <h1 class="sr-only">Gerenciador de Escalas</h1>
+    <div class="mode-bar print-hide"><strong id="modoAtualNome">Escala atual</strong><a href="inicio.html">Trocar modo</a></div>
+    <section id="turmas5x2" class="card print-hide" hidden><details><summary><strong>Turmas e folgas — 5×2</strong></summary>
+        <p>Colaboradores, férias e ausências usam o cadastro compartilhado. As folgas semanais deste modo seguem as turmas abaixo.</p>
+        <label>Vigência a partir de<input id="turmasInicio" type="date" onchange="carregarTurmasEdicao()"></label>
+        <p id="turmasVersoes"></p><div id="turmasLista"></div>
+        <div class="status-actions"><button type="button" class="btn-action" onclick="adicionarTurma()">Adicionar turma</button><button id="salvarTurmas" type="button" class="btn-action" onclick="salvarTurmas5x2()">Salvar turmas</button><button type="button" class="btn-action" onclick="recuperarTurmasEdicao()">Recuperar alterações pendentes</button></div><p id="turmasStatus" role="status" aria-live="polite"></p>
+    </details></section>
     <div class="print-block-message">IMPRESSÃO BLOQUEADA — A escala não foi salva e confirmada. Volte ao sistema, salve ou atualize a consulta antes de imprimir.</div>
     <div id="statusSalvamento" class="save-status print-hide" data-estado="pendente" role="status" aria-live="polite">
         <strong data-status-text>Preencha a escala. A impressão será liberada após salvar e confirmar.</strong>
@@ -596,7 +603,8 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="app-reliability.js?v=20261018-previa-feriados"></script>
+    <script src="modo-5x2.js?v=20261108"></script>
+    <script src="app-reliability.js?v=20261108-modos"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
         // =========================================================================
@@ -624,9 +632,9 @@
             Object.entries(medidas).forEach(([nome,medida]) => document.documentElement.style.setProperty(nome,medida));
             document.getElementById('tamanhoEscala').value = String(percentual);
             document.getElementById('tamanhoEscalaValor').value = `${percentual}%`;
-            try { localStorage.setItem(CHAVE_TAMANHO_ESCALA,String(percentual)); } catch (_) { /* Armazenamento indisponível: ajuste vale nesta sessão. */ }
+            try { gravarLocal(CHAVE_TAMANHO_ESCALA,String(percentual)); } catch (_) { /* Armazenamento indisponível: ajuste vale nesta sessão. */ }
         }
-        try { ajustarTamanhoEscala(localStorage.getItem(CHAVE_TAMANHO_ESCALA) ?? 50); }
+        try { ajustarTamanhoEscala(lerLocal(CHAVE_TAMANHO_ESCALA) ?? 50); }
         catch (_) { ajustarTamanhoEscala(50); }
 
         /**
@@ -820,6 +828,7 @@
                 document.getElementById('cfg_cor_alerta').value = lerLocal('c3') || '#c00000';
             }
 
+            if (MODO_5X2 && estadoEscala.configCarregada) alertasConfig.turmas5x2 = parseJSONField(configObj?.cfg_alertas,{})?.turmas5x2 || [];
             validarLayout({turnos:turnosConfig,tabelas:tabelasExtrasConfig});
             if (estadoEscala.configCarregada) {
                 gravarLocal('cfg_turnos_dinamicos',JSON.stringify(turnosConfig));
@@ -1538,6 +1547,7 @@
         function atualizarAlertaFolgasFeriadoHoje(mesAno, escalasDoMes) {
             const aviso = document.getElementById('alertaFolgasFeriadoHoje');
             if (!aviso) return;
+            if (MODO_5X2) { aviso.hidden=true; aviso.innerHTML=''; return; }
             const hoje = getHojeISO();
             if (mesAno !== hoje.slice(0,7)) { aviso.hidden = true; aviso.innerHTML = ''; return; }
             const escalaHoje = escalasDoMes.find(e => String(e.data_escala || '').slice(0,10) === hoje);
@@ -1601,7 +1611,7 @@
                 }
 
                 funcionarios.forEach(f => {
-                    if (isDesativado(f, dataISO)) return;
+                    if (!pertenceAoModo(f,dataISO) || isDesativado(f, dataISO)) return;
 
                     const altIndiv = f.alertasIndividuais || {};
                     const ausObj = getObjAusencia(f, dataISO);
@@ -1766,6 +1776,7 @@
 
         function getObjRegraFolgaCombinada(func, dataISO) {
             if (isDesativado(func, dataISO) || isDeFerias(func, dataISO) || getObjAusencia(func, dataISO)) return null;
+            if (MODO_5X2) return regraTurma(func,dataISO);
             if (!func.regrasFolga || !Array.isArray(func.regrasFolga)) return null;
 
             const dtEsc = new Date(dataISO + 'T00:00:00');
@@ -1785,6 +1796,7 @@
         }
 
         function getObjFolgaExtra(func, dataISO) {
+            if (MODO_5X2) return null;
             if (isDesativado(func, dataISO) || isDeFerias(func, dataISO) || getObjAusencia(func, dataISO)) return null;
             if (!func.folgasExtras || !Array.isArray(func.folgasExtras)) return null;
             return func.folgasExtras.find(item => item.data === dataISO) || null;
@@ -1833,7 +1845,7 @@
         }
 
         function nomesFolgaConfigurada(dataEscala, equipe=funcionarios) {
-            return equipe.filter(f => !isDesativado(f,dataEscala) && !isDeFerias(f,dataEscala) && !getObjAusencia(f,dataEscala)
+            return equipe.filter(f => pertenceAoModo(f,dataEscala) && !isDesativado(f,dataEscala) && !isDeFerias(f,dataEscala) && !getObjAusencia(f,dataEscala)
                 && (getObjRegraFolgaCombinada(f,dataEscala) || getObjFolgaExtra(f,dataEscala))).map(f => f.nome);
         }
 
@@ -1873,6 +1885,7 @@
             const usados=new Set([...folgas.map(normalizeStr),...indisponiveis]);
             const reservar=nome=>{
                 const chave=normalizeStr(nome);
+                if (MODO_5X2 && !equipe.some(f=>normalizeStr(f.nome)===chave && pertenceAoModo(f,data))) return false;
                 if (!chave || usados.has(chave)) return false;
                 usados.add(chave); return true;
             };
@@ -1915,6 +1928,7 @@
             if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) return alert('Carregue as configurações e os colaboradores do servidor antes de gerar o mês.');
             const [ano,numeroMes]=mes.split('-').map(Number);
             const diasNoMes=new Date(ano,numeroMes,0).getDate();
+            if (MODO_5X2 && Array.from({length:diasNoMes},(_,i)=>`${mes}-${String(i+1).padStart(2,'0')}`).some(data=>!turmasNaData(data).some(t=>t.membros.length))) return alert('Cadastre turmas com membros e vigência para todo o mês antes de gerar as escalas 5×2.');
             if (!confirm(`Gerar e PUBLICAR as escalas de ${mes}? Serão usados os padrões e as folgas cadastradas. Datas com escala ou rascunho existentes não serão alteradas. Cada dia será conferido no banco antes de aparecer como publicado.`)) return;
             geracaoMesEmCurso=true;
             const button=document.getElementById('btnGerarMes');
@@ -2020,7 +2034,7 @@
         function atualizarOpcoesDropdown() {
             const dataEscala = document.getElementById('data_escala')?.value || getHojeISO();
             const escalados = obterEscaladosGlobais().map(n => normalizeStr(n)); 
-            const funcDisponiveis = funcionarios.filter(f => !isDeFerias(f, dataEscala) && !isDesativado(f, dataEscala) && !getObjAusencia(f, dataEscala));
+            const funcDisponiveis = funcionarios.filter(f => pertenceAoModo(f,dataEscala) && !isDeFerias(f, dataEscala) && !isDesativado(f, dataEscala) && !getObjAusencia(f, dataEscala));
 
             document.querySelectorAll('.func-select').forEach(sel => {
                 const valorAtual = valorSelect(sel); 
@@ -2129,7 +2143,7 @@
         function verificarFaltosos(escaladosNormais = []) {
             const escalados = escaladosNormais.map(n => normalizeStr(n));
             const dataEscala = document.getElementById('data_escala')?.value || getHojeISO();
-            const faltam = funcionarios.filter(f => f.alerta && !isDeFerias(f, dataEscala) && !isDesativado(f, dataEscala) && !getObjAusencia(f, dataEscala) && !escalados.includes(normalizeStr(f.nome)));
+            const faltam = funcionarios.filter(f => pertenceAoModo(f,dataEscala) && f.alerta && !isDeFerias(f, dataEscala) && !isDesativado(f, dataEscala) && !getObjAusencia(f, dataEscala) && !escalados.includes(normalizeStr(f.nome)));
             const divAlerta = document.getElementById('alertaFaltando');
             if (divAlerta) {
                 if (faltam.length > 0 && escalados.length > 0) {
@@ -2169,7 +2183,7 @@
             let funcDisponiveis = [];
 
             if (modalMode === 'todas_pessoas') {
-                funcDisponiveis = [...funcionarios];
+                funcDisponiveis = funcionarios.filter(f=>pertenceAoModo(f,dataEscala));
             } else if (modalMode === 'excecao') {
                 let pessoasNosTurnos = [];
                 turnosConfig.forEach(t => {
@@ -2189,7 +2203,7 @@
                     return pessoasNosTurnos.includes(nFunc) && (!pessoasEmOutrasExcecoes.includes(nFunc) || selecionadosAqui.includes(nFunc));
                 });
             } else {
-                funcDisponiveis = funcionarios.filter(f => !isDeFerias(f, dataEscala) && !isDesativado(f, dataEscala) && !getObjAusencia(f, dataEscala));
+                funcDisponiveis = funcionarios.filter(f => pertenceAoModo(f,dataEscala) && !isDeFerias(f, dataEscala) && !isDesativado(f, dataEscala) && !getObjAusencia(f, dataEscala));
             }
 
             let html = '';
@@ -2667,7 +2681,7 @@
                 <div class="print-hide"><button class="btn-action" onclick="prepararEdicao('${encodeData(dados)}')">✏️ Editar escala</button></div>
                 <p class="versao-salva">Versão salva: ${escapeHTML(dados.ultima_atualizacao ? new Date(dados.ultima_atualizacao).toLocaleString('pt-BR') : 'registro anterior')}</p>
                 <p class="table-scroll-hint print-hide">Deslize a pré-visualização para os lados para conferir toda a página.</p><div class="table-responsive-wrapper sheet-preview-scroll"><div class="sheet"><div class="sheet-page sheet-page-main">
-                <div class="sheet-heading">ESCALA DE TRABALHO — ${escapeHTML(formatarDataBR(dados.data_escala))} (${escapeHTML(getNomeDiaSemana(dados.data_escala))})</div>
+                <div class="sheet-heading">ESCALA DE TRABALHO${MODO_5X2 ? ' — 5×2' : ''} — ${escapeHTML(formatarDataBR(dados.data_escala))} (${escapeHTML(getNomeDiaSemana(dados.data_escala))})</div>
                 <div class="sheet-layout"><div class="sheet-main">${shifts}${fiscaisBlock}</div>
                 <table class="extbl sheet-aside"><tbody class="sheet-aside-block"><tr><th class="exhdr">QUANTIDADE DE CAIXAS</th></tr><tr><td>${cxManha} PELA MANHÃ<br>${cxNoite} PELA TARDE/NOITE</td></tr></tbody><tbody class="sheet-aside-block"><tr><th class="exhdr">QUANTIDADE DE FISCAIS</th></tr><tr><td>${fiscManha} PELA MANHÃ<br>${fiscNoite} PELA TARDE/NOITE</td></tr></tbody><tbody class="sheet-aside-block"><tr><th class="exhdr">FOLGAS</th></tr><tr><td>${nomesUnicos(dados.folgas).map(n=>escapeHTML(n.toUpperCase())).join('<br>') || '-'}</td></tr></tbody></table></div>
                 ${obs ? `<div class="sheet-observacoes" style="color:${safeColor(cor)}"><strong>OBSERVAÇÕES:</strong> ${escapeHTML(obs)}</div>` : ''}
@@ -3127,6 +3141,7 @@
             document.getElementById('data_busca').value = getHojeISO();
             if (!document.getElementById('data_escala').value) document.getElementById('data_escala').value = getHojeISO();
             await Promise.all([carregarConfiguracoes(), carregarFuncionariosNuvem()]);
+            inicializarModoUI();
             gerarCamposFormularioEscala();
             carregarRascunhoFormulario();
             if (estadoEscala.funcionariosCarregados) renderizarListaFunc();

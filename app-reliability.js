@@ -39,9 +39,9 @@ function nomesUnicos(value) {
         seen.add(key); return true;
     });
 }
-function lerLocal(key) { try { return localStorage.getItem(key); } catch { return null; } }
-function gravarLocal(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } }
-function removerLocal(key) { try { localStorage.removeItem(key); } catch { /* Mantém a aplicação utilizável. */ } }
+function lerLocal(key) { try { return localStorage.getItem(chaveModo(key)); } catch { return null; } }
+function gravarLocal(key, value) { try { localStorage.setItem(chaveModo(key), value); return true; } catch { return false; } }
+function removerLocal(key) { try { localStorage.removeItem(chaveModo(key)); } catch { /* Mantém a aplicação utilizável. */ } }
 // A versão temporária sem login apaga a senha que versões anteriores guardaram no navegador.
 try { sessionStorage.removeItem('escala_access_token'); } catch { /* Armazenamento indisponível. */ }
 removerLocal('escala_access_token');
@@ -50,7 +50,7 @@ async function fetchAPI(url, options = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-        return await fetch(url, {...options, cache:'no-store', signal:controller.signal});
+        return await fetch(urlModo(url), {...options, cache:'no-store', signal:controller.signal});
     } finally { clearTimeout(timer); }
 }
 
@@ -58,7 +58,7 @@ async function requestJSON(url, options = {}, timeout = REQUEST_TIMEOUT_MS) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-        const response = await fetch(url, {
+        const response = await fetch(urlModo(url), {
             ...options, cache: 'no-store', signal: controller.signal,
             headers: { ...(options.body ? {'Content-Type':'application/json'} : {}), ...options.headers }
         });
@@ -217,7 +217,8 @@ async function salvarEscalaConfiavel(event) {
         validarDuplicacoes();
         const data = document.getElementById('data_escala').value;
         const escalados = obterEscaladosGlobais().map(normalizeStr);
-        const faltam = funcionarios.filter(f => f.alerta && !isDeFerias(f,data) && !isDesativado(f,data) && !getObjAusencia(f,data) && !escalados.includes(normalizeStr(f.nome)));
+        validarMembros5x2(data,obterEscaladosGlobais());
+        const faltam = funcionarios.filter(f => pertenceAoModo(f,data) && f.alerta && !isDeFerias(f,data) && !isDesativado(f,data) && !getObjAusencia(f,data) && !escalados.includes(normalizeStr(f.nome)));
         if (faltam.length && !confirm(`Pendentes de alocação: ${faltam.map(f=>f.nome).join(', ')}. Salvar mesmo assim?`)) {
             atualizarStatusSalvamento('pendente','Salvamento cancelado. Alterações NÃO SALVAS; rascunho preservado.'); return;
         }

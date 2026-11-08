@@ -133,6 +133,8 @@ function validarMembros5x2(data,nomes) {
     if (!turmasNaData(data).some(t=>t.membros.length)) throw new Error('Nenhuma turma com membros está vigente nesta data.');
     const membros=new Set(funcionarios.filter(f=>pertenceAoModo(f,data)).map(f=>normalizeStr(f.nome)));
     const aprendizes=new Set(nomesAprendizesNoFormulario().map(normalizeStr));
+    const folgantes=new Set(nomesUnicos(document.getElementById('folgas')?.value).map(normalizeStr));
+    nomesAprendizesConfigurados().forEach(nome=>{if(folgantes.has(normalizeStr(nome))) aprendizes.add(normalizeStr(nome));});
     const invalidos=nomes.filter(n=>!membros.has(normalizeStr(n)) && !aprendizes.has(normalizeStr(n)));
     if (invalidos.length) throw new Error('Sem turma 5×2 nesta data: '+invalidos.join(', ')+'. Ajuste a vigência ou retire da escala.');
 }

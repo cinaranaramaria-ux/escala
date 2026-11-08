@@ -605,7 +605,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="modo-5x2.js?v=20261108-regras-tabelas"></script>
+    <script src="modo-5x2.js?v=20261108-folgas-proprias"></script>
     <script src="app-reliability.js?v=20261108-modos"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
@@ -3067,7 +3067,7 @@
             else turnosConfig=turnosAtuais;
             if (Array.isArray(savedLayout.tabelas)) tabelasExtrasConfig = savedLayout.tabelas.map(t=>{
                 const atual=Array.isArray(tabelasAtuais)?tabelasAtuais.find(a=>a.id===t.id):null;
-                return atual ? {...t,titulo:atual.titulo,colunas:atual.colunas,regraEscala:regraTabelaExtra(atual),contarLimite:atual.contarLimite} : t;
+                return atual ? {...t,titulo:atual.titulo,colunas:atual.colunas,defaultRows:atual.defaultRows || [],regraEscala:regraTabelaExtra(atual),contarLimite:atual.contarLimite} : t;
             });
             gerarCamposFormularioEscala();
             const savedTurnos = parseJSONField(d.json_turnos, {});

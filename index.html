@@ -2854,7 +2854,7 @@
         function iniciarEdicaoTabelaExtraConfigUI(id) { editandoTabelaExtraId = id; renderTabelasExtrasConfigLista(); }
         function cancelarEdicaoTabelaExtraConfigUI() { editandoTabelaExtraId = null; renderTabelasExtrasConfigLista(); }
 
-        function salvarEdicaoTabelaExtraConfigUI(id) {
+        async function salvarEdicaoTabelaExtraConfigUI(id) {
             const tbl = tabelasExtrasConfig.find(t => t.id === id);
             if (!tbl) return;
 
@@ -2872,6 +2872,7 @@
             editandoTabelaExtraId = null;
             renderTabelasExtrasConfigLista();
             reconstruirFormularioPreservando();
+            await salvarConfiguracoes();
         }
 
         // ------------------ NAVEGAÇÃO DE ABAS ------------------
@@ -3042,11 +3043,12 @@
             let d = JSON.parse(decodeURIComponent(dadosCod));
             if (Array.isArray(d)) d = d[0];
             if (estadoEscala.pendente && !confirm('Abrir esta escala e substituir o formulário? O rascunho atual fica guardado por data.')) return;
-            let turnosAtuais;
+            let turnosAtuais,tabelasAtuais;
             try {
                 const resposta=await requestJSON(N8N_GET_CONFIG);
                 const config=Array.isArray(resposta)?resposta[0]:resposta;
                 turnosAtuais=parseJSONField(config?.cfg_turnos,null);
+                tabelasAtuais=parseJSONField(config?.cfg_tabelas_extras,[]);
                 if (!Array.isArray(turnosAtuais)) throw new Error('Configuração atual de turnos indisponível.');
                 validarLayout({turnos:turnosAtuais,tabelas:[]});
             } catch(e) { alert(`Não foi possível abrir a edição com os horários atuais. ${e.message} Tente novamente.`); return; }
@@ -3063,7 +3065,10 @@
                 return atual ? {...t,nome:atual.nome,ent:atual.ent,int:atual.int,sai:atual.sai,periodo:atual.periodo} : t;
             });
             else turnosConfig=turnosAtuais;
-            if (Array.isArray(savedLayout.tabelas)) tabelasExtrasConfig = savedLayout.tabelas;
+            if (Array.isArray(savedLayout.tabelas)) tabelasExtrasConfig = savedLayout.tabelas.map(t=>{
+                const atual=Array.isArray(tabelasAtuais)?tabelasAtuais.find(a=>a.id===t.id):null;
+                return atual ? {...t,titulo:atual.titulo,colunas:atual.colunas,regraEscala:regraTabelaExtra(atual),contarLimite:atual.contarLimite} : t;
+            });
             gerarCamposFormularioEscala();
             const savedTurnos = parseJSONField(d.json_turnos, {});
             

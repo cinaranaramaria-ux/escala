@@ -199,6 +199,7 @@
             <div id="alertaFolgasFeriadoHoje" class="holiday-leave-alert" role="status" aria-live="polite" hidden></div>
             <div class="monthly-tools print-hide">
                 <button id="btnGerarMes" type="button" class="btn-action" onclick="gerarEscalasDoMes()">Gerar e publicar escalas do mês</button>
+                <button id="btnRegerarMes" type="button" class="btn-action" style="background:#b45309" onclick="gerarEscalasDoMes(true)">Regerar e substituir escalas do mês</button>
                 <span id="statusGeracaoMes" role="status" aria-live="polite">Usa os padrões cadastrados; escalas e rascunhos existentes serão preservados. Cada dia só conta como publicado após confirmação do banco.</span>
                 <details class="monthly-holidays">
                     <summary>Feriados deste mês</summary>
@@ -1923,7 +1924,7 @@
         }
 
         let geracaoMesEmCurso=false;
-        async function gerarEscalasDoMes() {
+        async function gerarEscalasDoMes(substituir=false) {
             if (geracaoMesEmCurso) return;
             const mes=document.getElementById('mes_previsao')?.value;
             if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes||'')) return alert('Selecione um mês válido.');
@@ -1931,11 +1932,12 @@
             const [ano,numeroMes]=mes.split('-').map(Number);
             const diasNoMes=new Date(ano,numeroMes,0).getDate();
             if (MODO_5X2 && Array.from({length:diasNoMes},(_,i)=>`${mes}-${String(i+1).padStart(2,'0')}`).some(data=>!turmasNaData(data).some(t=>t.membros.length))) return alert('Cadastre turmas com membros e vigência para todo o mês antes de gerar as escalas 5×2.');
-            if (!confirm(`Gerar e PUBLICAR as escalas de ${mes}? Serão usados os padrões e as folgas cadastradas. Datas com escala ou rascunho existentes não serão alteradas. Cada dia será conferido no banco antes de aparecer como publicado.`)) return;
+            if (!confirm(substituir ? `REGERAR ${mes}? As escalas salvas deste mês serão SUBSTITUÍDAS pelos padrões e regras atuais, incluindo alterações manuais já salvas. Datas com rascunhos serão preservadas. Confirmar substituição?` : `Gerar e PUBLICAR as escalas de ${mes}? Serão usados os padrões e as folgas cadastradas. Datas com escala ou rascunho existentes não serão alteradas. Cada dia será conferido no banco antes de aparecer como publicado.`)) return;
             geracaoMesEmCurso=true;
             const button=document.getElementById('btnGerarMes');
             const status=document.getElementById('statusGeracaoMes');
             button.disabled=true;
+            document.getElementById('btnRegerarMes').disabled=true;
             if (estadoEscala.pendente) { gravarRascunhoDebounced.cancel(); salvarRascunhoFormulario(); }
             const padrao=copiarPadraoAtual();
             const equipe=typeof structuredClone==='function' ? structuredClone(funcionarios) : JSON.parse(JSON.stringify(funcionarios));
@@ -1951,15 +1953,20 @@
                 for (let dia=1;dia<=diasNoMes;dia++) {
                     const data=`${mes}-${String(dia).padStart(2,'0')}`;
                     status.textContent=`Dia ${dia}/${diasNoMes}: ${publicados} publicadas, ${pulados} preservadas. Impressão apenas após confirmação.`;
-                    if (datasSalvas.has(data) || lerLocal(`escala_rascunho_${data}`)) { pulados++; continue; }
+                    if ((!substituir && datasSalvas.has(data)) || lerLocal(`escala_rascunho_${data}`)) { pulados++; continue; }
                     const remoto=await requestJSON(`${N8N_GET_DRAFT}?data=${encodeURIComponent(data)}`);
                     if (remoto?.payload || remoto?.status==='ok') { pulados++; continue; }
                     if (remoto?.status!=='vazio') throw new Error(`Não foi possível confirmar se ${formatarDataBR(data)} já tem rascunho. Geração interrompida.`);
                     const atual=await consultarEscala(data);
-                    if (atual) { datasSalvas.add(data); pulados++; continue; }
+                    if (atual && !substituir) { datasSalvas.add(data); pulados++; continue; }
+                    if (substituir) {
+                        const prevista=existentes.find(row=>row.data_escala.slice(0,10)===data);
+                        if ((!!prevista!==!!atual) || (atual && (!atual.ultima_atualizacao || !mesmaVersao(prevista.ultima_atualizacao,atual.ultima_atualizacao)))) throw new Error(`A escala de ${formatarDataBR(data)} mudou durante a operação. Confira antes de tentar novamente.`);
+                    }
                     const rascunho=montarEscalaDoPadrao(data,padrao,equipe,feriados.get(data));
                     if (!gravarLocal(`escala_rascunho_${data}`,JSON.stringify(rascunho))) throw new Error(`Não foi possível proteger o rascunho de ${formatarDataBR(data)} neste aparelho.`);
                     const payload=payloadEscalaMensal(rascunho);
+                    if (substituir && atual) payload.expected_updated_at=atual.ultima_atualizacao;
                     let resposta;
                     try { resposta=await requestJSON(N8N_WEBHOOK_URL,{method:'POST',body:JSON.stringify(payload)}); }
                     catch (e) {
@@ -1975,6 +1982,7 @@
             } catch(e) { erro=e.message; console.error('[Geração mensal] Interrompida:',e); }
             finally {
                 geracaoMesEmCurso=false; button.disabled=false;
+                document.getElementById('btnRegerarMes').disabled=false;
                 status.textContent=`${publicados} escala(s) publicada(s) e confirmada(s); ${pulados} data(s) preservada(s). ${erro ? `Geração interrompida: ${erro} Revise a data pendente antes de tentar novamente.` : 'Mês concluído.'}`;
                 await renderizarCalendario();
             }

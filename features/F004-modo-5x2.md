@@ -6,6 +6,7 @@ Estado: em andamento (implementado e testado localmente; instalação do backend
 Escolher entre o modo atual e o modo 5×2, com turmas de folgas semanais editáveis e sem mistura de escalas, rascunhos ou padrões.
 
 ## Escopo
+- Regeneração mensal explícita por botão separado e confirmação: substitui escalas finais usando padrões atuais, preserva rascunhos, relê a versão e envia `expected_updated_at`. Alterações concorrentes interrompem a operação. Geração comum continua preservando datas existentes.
 - Cada tabela extra tem `regraEscala`: `5x2` exige turma e aplica regras do modo; `propria` usa as regras anteriores do colaborador. Seleção, validação, calendário e geração consideram a escolha. Em registros antigos sem esse campo, tabelas de aprendizes conservam a exceção; demais seguem 5×2. O campo é salvo no JSON existente e independe do título após configurado.
 - Exceção Jovem Aprendiz: as tabelas com título “Jovem Aprendiz” ou “Jovens Aprendizes” permitem seleção sem turma 5×2. Pessoas configuradas nessas tabelas mantêm regras anteriores de folga fixa/ciclo/extra, férias, ausências e contrato; não adotam o ciclo dominical das turmas. Mesmas regras na geração automática e validação do salvamento; duplicações permanecem bloqueadas.
 - Ciclo individual de domingo: três trabalhados e quarto de folga, a cada 28 dias a partir de um domingo de folga cadastrado por participante. Semana de segunda a domingo; na semana de domingo livre, A fica com quinta/domingo e B sexta/domingo. Outras turmas escolhem o dia semanal mantido.

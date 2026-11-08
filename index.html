@@ -1935,7 +1935,7 @@
             const [ano,numeroMes]=mes.split('-').map(Number);
             const diasNoMes=new Date(ano,numeroMes,0).getDate();
             if (MODO_5X2 && Array.from({length:diasNoMes},(_,i)=>`${mes}-${String(i+1).padStart(2,'0')}`).some(data=>!turmasNaData(data).some(t=>t.membros.length))) return alert('Cadastre turmas com membros e vigência para todo o mês antes de gerar as escalas 5×2.');
-            if (!confirm(substituir ? `REGERAR ${mes}? As escalas salvas deste mês serão SUBSTITUÍDAS pelos padrões e regras atuais, incluindo alterações manuais já salvas. Datas com rascunhos serão preservadas. Confirmar substituição?` : `Gerar e PUBLICAR as escalas de ${mes}? Serão usados os padrões e as folgas cadastradas. Datas com escala ou rascunho existentes não serão alteradas. Cada dia será conferido no banco antes de aparecer como publicado.`)) return;
+            if (!confirm(substituir ? `REGERAR ${mes}? As escalas salvas deste mês serão SUBSTITUÍDAS pelos padrões e regras atuais, incluindo alterações manuais já salvas. TODAS as datas serão recalculadas, inclusive as que têm rascunhos. Edições manuais e rascunhos serão substituídos. Confirmar substituição?` : `Gerar e PUBLICAR as escalas de ${mes}? Serão usados os padrões e as folgas cadastradas. Datas com escala ou rascunho existentes não serão alteradas. Cada dia será conferido no banco antes de aparecer como publicado.`)) return;
             geracaoMesEmCurso=true;
             const button=document.getElementById('btnGerarMes');
             const status=document.getElementById('statusGeracaoMes');
@@ -1956,10 +1956,10 @@
                 for (let dia=1;dia<=diasNoMes;dia++) {
                     const data=`${mes}-${String(dia).padStart(2,'0')}`;
                     status.textContent=`Dia ${dia}/${diasNoMes}: ${publicados} publicadas, ${pulados} preservadas. Impressão apenas após confirmação.`;
-                    if ((!substituir && datasSalvas.has(data)) || lerLocal(`escala_rascunho_${data}`)) { pulados++; continue; }
+                    if (!substituir && (datasSalvas.has(data) || lerLocal(`escala_rascunho_${data}`))) { pulados++; continue; }
                     const remoto=await requestJSON(`${N8N_GET_DRAFT}?data=${encodeURIComponent(data)}`);
-                    if (remoto?.payload || remoto?.status==='ok') { pulados++; continue; }
-                    if (remoto?.status!=='vazio') throw new Error(`Não foi possível confirmar se ${formatarDataBR(data)} já tem rascunho. Geração interrompida.`);
+                    if (!substituir && (remoto?.payload || remoto?.status==='ok')) { pulados++; continue; }
+                    if (!remoto?.payload && remoto?.status!=='vazio') throw new Error(`Não foi possível confirmar se ${formatarDataBR(data)} já tem rascunho. Geração interrompida.`);
                     const atual=await consultarEscala(data);
                     if (atual && !substituir) { datasSalvas.add(data); pulados++; continue; }
                     if (substituir) {
@@ -1981,6 +1981,18 @@
                     if (!conferirPayload(salvo,payload)) throw new Error(`A leitura do banco não confirmou ${formatarDataBR(data)}. O rascunho local foi preservado.`);
                     removerLocal(`escala_rascunho_${data}`);
                     datasSalvas.add(data); publicados++;
+                    if (substituir && remoto?.payload) {
+                        const excluido=await requestJSON(N8N_DELETE_DRAFT,{method:'POST',body:JSON.stringify({data_escala:data})});
+                        if (excluido.status!=='ok') throw new Error('Escala salva, mas não foi possível limpar o rascunho antigo de '+formatarDataBR(data));
+                    }
+                    if (substituir && document.getElementById('data_escala').value===data) {
+                        const aba=document.querySelector('.tab-content.active')?.id;
+                        gravarRascunhoDebounced.cancel(); estadoEscala.pendente=false;
+                        await prepararEdicao(encodeData(salvo));
+                        gravarRascunhoDebounced.cancel(); estadoEscala.pendente=false;
+                        removerLocal(`escala_rascunho_${data}`);
+                        if (aba) openTab(aba,false);
+                    }
                 }
             } catch(e) { erro=e.message; console.error('[Geração mensal] Interrompida:',e); }
             finally {
@@ -1988,6 +2000,7 @@
                 document.getElementById('btnRegerarMes').disabled=false;
                 status.textContent=`${publicados} escala(s) publicada(s) e confirmada(s); ${pulados} data(s) preservada(s). ${erro ? `Geração interrompida: ${erro} Revise a data pendente antes de tentar novamente.` : 'Mês concluído.'}`;
                 await renderizarCalendario();
+                if (document.getElementById('data_busca').value.startsWith(mes)) await buscarHistorico();
             }
         }
 

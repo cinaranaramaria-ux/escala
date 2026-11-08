@@ -12,6 +12,7 @@ O frontend oferece `inicio.html` para escolher o modo. O link antigo continua ab
 7. Confirmar primeiro uma gravação e consulta 5×2 em uma data de teste, conferindo também que a escala atual da mesma data continua intacta. Depois utilizar a geração mensal.
 
 ## Separação e vigência
+- Atualização da regeneração: “Regerar e substituir” agora recalcula TODAS as datas, inclusive rascunhos, mediante confirmação. Depois de confirmar a escala no banco, remove o rascunho antigo e atualiza consulta/formulário abertos. Esta regra substitui a preservação de rascunhos mencionada nas entregas anteriores. A geração comum permanece conservadora.
 - “Editar escala” consulta os turnos atuais e atualiza seus horários por ID no formulário. Pessoas, tabelas e exceções daquela escala são preservadas; horários só entram no registro existente ao salvar e confirmar. Turnos removidos da configuração mantêm o layout histórico. Falha ao consultar regras impede abrir a edição com horários desatualizados.
 - Edição de turno: “Salvar alteração” persiste e confirma no servidor. A geração mensal recarrega as regras salvas antes de usar os padrões; não usa o snapshot histórico carregado por uma edição de escala antiga. Não exige migração adicional.
 - Para recalcular datas já publicadas, usar “Regerar e substituir escalas do mês” e confirmar. Essa ação substitui inclusive edições manuais salvas; rascunhos são preservados e mudanças concorrentes interrompem a substituição. Não requer migração adicional ou novo workflow.

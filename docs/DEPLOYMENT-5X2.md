@@ -12,6 +12,7 @@ O frontend oferece `inicio.html` para escolher o modo. O link antigo continua ab
 7. Confirmar primeiro uma gravação e consulta 5×2 em uma data de teste, conferindo também que a escala atual da mesma data continua intacta. Depois utilizar a geração mensal.
 
 ## Separação e vigência
+- Edição de turno: “Salvar alteração” persiste e confirma no servidor. A geração mensal recarrega as regras salvas antes de usar os padrões; não usa o snapshot histórico carregado por uma edição de escala antiga. Não exige migração adicional.
 - Para recalcular datas já publicadas, usar “Regerar e substituir escalas do mês” e confirmar. Essa ação substitui inclusive edições manuais salvas; rascunhos são preservados e mudanças concorrentes interrompem a substituição. Não requer migração adicional ou novo workflow.
 - Em Regras de Negócio → Tabelas Extras, criar/editar cada tabela e escolher “Regra de escala”: seguir 5×2 ou regras próprias do colaborador. Confirmar a alteração e salvar as configurações. A escolha é guardada no JSON existente, sem migração. Tabelas antigas de aprendizes preservam a exceção até uma escolha explícita.
 - Em cada turma, use “Selecionar participantes” com busca. Informe o domingo de folga de referência de cada pessoa; o próximo será 28 dias depois. A semana é segunda–domingo; A mantém quinta e B sexta na semana de domingo livre. Sem referência individual, o ciclo de domingos não é ativado.

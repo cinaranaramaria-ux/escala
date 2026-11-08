@@ -1924,8 +1924,11 @@
         }
 
         let geracaoMesEmCurso=false;
+        let carregandoRegrasMes=false;
         async function gerarEscalasDoMes(substituir=false) {
-            if (geracaoMesEmCurso) return;
+            if (geracaoMesEmCurso || carregandoRegrasMes) return;
+            carregandoRegrasMes=true;
+            try { await carregarConfiguracoes(); } finally { carregandoRegrasMes=false; }
             const mes=document.getElementById('mes_previsao')?.value;
             if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes||'')) return alert('Selecione um mês válido.');
             if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) return alert('Carregue as configurações e os colaboradores do servidor antes de gerar o mês.');
@@ -2733,7 +2736,7 @@
         let editandoTurnoId = null;
         function iniciarEdicaoTurnoConfigUI(id) { editandoTurnoId = id; renderTurnosConfigLista(); }
         function cancelarEdicaoTurnoConfigUI() { editandoTurnoId = null; renderTurnosConfigLista(); }
-        function salvarEdicaoTurnoConfigUI(id) {
+        async function salvarEdicaoTurnoConfigUI(id) {
             const item = turnosConfig.find(t => t.id === id);
             if (!item) return;
             const campo = nome => document.getElementById(`edit_turno_${nome}_${id}`)?.value.trim() || '';
@@ -2743,6 +2746,7 @@
             editandoTurnoId = null;
             renderTurnosConfigLista();
             reconstruirFormularioPreservando();
+            await salvarConfiguracoes();
         }
         function renderTurnosConfigLista() {
             const cont = document.getElementById('containerConfigTurnosLista');
@@ -2756,7 +2760,7 @@
                         <div><label>Saída</label><input id="edit_turno_sai_${t.id}" value="${escapeHTML(t.sai)}"></div>
                         <div><label>Período</label><select id="edit_turno_periodo_${t.id}"><option value="manha" ${((t.periodo || (Number.parseInt(t.ent,10) < 12 ? 'manha' : 'tarde_noite')) === 'manha') ? 'selected' : ''}>Manhã</option><option value="tarde_noite" ${((t.periodo || (Number.parseInt(t.ent,10) < 12 ? 'manha' : 'tarde_noite')) === 'tarde_noite') ? 'selected' : ''}>Tarde/Noite</option></select></div>
                     </div>
-                    <div class="turno-config-actions"><button type="button" class="btn-action" onclick="salvarEdicaoTurnoConfigUI('${t.id}')">Aplicar alteração</button><button type="button" onclick="cancelarEdicaoTurnoConfigUI()">Cancelar</button></div>
+                    <div class="turno-config-actions"><button type="button" class="btn-action" onclick="salvarEdicaoTurnoConfigUI('${t.id}')">Salvar alteração</button><button type="button" onclick="cancelarEdicaoTurnoConfigUI()">Cancelar</button></div>
                 </div>
             ` : `
                 <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:10px; border-radius:6px; border:1px solid #cbd5e1;">
@@ -2879,6 +2883,7 @@
             if (id === 'historico' && consultar) buscarHistorico();
             if (id === 'previsao') renderizarCalendario();
             if (id === 'ausencias') renderizarRelatorioAusencias();
+            if (id === 'configuracoes' && consultar) carregarConfiguracoes().then(()=>{renderTurnosConfigLista();renderTabelasExtrasConfigLista();});
         }
 
         function restaurarAbaSalva() {

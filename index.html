@@ -603,7 +603,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="modo-5x2.js?v=20261108-cadastro"></script>
+    <script src="modo-5x2.js?v=20261108-aprendizes"></script>
     <script src="app-reliability.js?v=20261108-modos"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
@@ -1611,7 +1611,7 @@
                 }
 
                 funcionarios.forEach(f => {
-                    if (!pertenceAoModo(f,dataISO) || isDesativado(f, dataISO)) return;
+                    if ((!pertenceAoModo(f,dataISO) && !(MODO_5X2 && aprendizConfigurado(f))) || isDesativado(f, dataISO)) return;
 
                     const altIndiv = f.alertasIndividuais || {};
                     const ausObj = getObjAusencia(f, dataISO);
@@ -1776,7 +1776,7 @@
 
         function getObjRegraFolgaCombinada(func, dataISO) {
             if (isDesativado(func, dataISO) || isDeFerias(func, dataISO) || getObjAusencia(func, dataISO)) return null;
-            if (MODO_5X2) return regraTurma(func,dataISO);
+            if (MODO_5X2 && !aprendizConfigurado(func)) return regraTurma(func,dataISO);
             if (!func.regrasFolga || !Array.isArray(func.regrasFolga)) return null;
 
             const dtEsc = new Date(dataISO + 'T00:00:00');
@@ -1796,7 +1796,7 @@
         }
 
         function getObjFolgaExtra(func, dataISO) {
-            if (MODO_5X2) return null;
+            if (MODO_5X2 && !aprendizConfigurado(func)) return null;
             if (isDesativado(func, dataISO) || isDeFerias(func, dataISO) || getObjAusencia(func, dataISO)) return null;
             if (!func.folgasExtras || !Array.isArray(func.folgasExtras)) return null;
             return func.folgasExtras.find(item => item.data === dataISO) || null;
@@ -1845,7 +1845,7 @@
         }
 
         function nomesFolgaConfigurada(dataEscala, equipe=funcionarios) {
-            return equipe.filter(f => pertenceAoModo(f,dataEscala) && !isDesativado(f,dataEscala) && !isDeFerias(f,dataEscala) && !getObjAusencia(f,dataEscala)
+            return equipe.filter(f => (pertenceAoModo(f,dataEscala) || (MODO_5X2 && aprendizConfigurado(f))) && !isDesativado(f,dataEscala) && !isDeFerias(f,dataEscala) && !getObjAusencia(f,dataEscala)
                 && (getObjRegraFolgaCombinada(f,dataEscala) || getObjFolgaExtra(f,dataEscala))).map(f => f.nome);
         }
 
@@ -1883,23 +1883,23 @@
             const folgas=nomesUnicos(nomesFolgaConfigurada(data,equipe).join(','));
             const indisponiveis=new Set(equipe.filter(f=>isDesativado(f,data) || isDeFerias(f,data) || getObjAusencia(f,data)).map(f=>normalizeStr(f.nome)));
             const usados=new Set([...folgas.map(normalizeStr),...indisponiveis]);
-            const reservar=nome=>{
+            const reservar=(nome,aprendiz=false)=>{
                 const chave=normalizeStr(nome);
-                if (MODO_5X2 && !equipe.some(f=>normalizeStr(f.nome)===chave && pertenceAoModo(f,data))) return false;
+                if (MODO_5X2 && !aprendiz && !equipe.some(f=>normalizeStr(f.nome)===chave && pertenceAoModo(f,data))) return false;
                 if (!chave || usados.has(chave)) return false;
                 usados.add(chave); return true;
             };
             const turnos={};
             const nomesEmTurnos=new Set();
             padrao.turnos.forEach(t=>{
-                const nomes=nomesUnicos(t.defaultPessoas).filter(reservar);
+                const nomes=nomesUnicos(t.defaultPessoas).filter(nome=>reservar(nome));
                 turnos[t.id]=nomes.join(',');
                 nomes.forEach(n=>nomesEmTurnos.add(normalizeStr(n)));
             });
             const fiscais=padrao.fiscais.filter(f=>f.nome && reservar(f.nome)).map(f=>({...f,periodo:periodoFiscal(f.ent,f.periodo)}));
             const tabelasExtras={};
             padrao.tabelas.forEach(t=>{
-                const linhas=(t.defaultRows||[]).filter(row=>row[t.colunas[0]] && reservar(row[t.colunas[0]]));
+                const linhas=(t.defaultRows||[]).filter(row=>row[t.colunas[0]] && reservar(row[t.colunas[0]],tabelaJovemAprendiz(t)));
                 if (linhas.length) tabelasExtras[t.id]=linhas;
             });
             const excecoes=padrao.excecoes.map(e=>({...e,nomes:nomesUnicos(e.nomes||e.nome).filter(n=>nomesEmTurnos.has(normalizeStr(n))).join(',')})).filter(e=>e.nomes);
@@ -2041,7 +2041,8 @@
                 sel.removeAttribute('data-init'); sel.dataset.seeded = 'true';
 
                 let optionsHTML = '<option value="">-- Selecionar --</option>';
-                let listaSel = [...funcDisponiveis];
+                const turmaPropria=tabelaJovemAprendiz(tabelasExtrasConfig.find(t=>t.id===sel.closest('.linha-tbl-extra')?.dataset.tbl));
+                let listaSel = MODO_5X2 && turmaPropria ? funcionarios.filter(f=>!isDeFerias(f,dataEscala) && !isDesativado(f,dataEscala) && !getObjAusencia(f,dataEscala)) : [...funcDisponiveis];
 
                 if (valorAtual) {
                     const nVal = normalizeStr(valorAtual);

@@ -15,6 +15,17 @@ function turmasNaData(data) {
 }
 function turmaColaborador(func,data) { return turmasNaData(data).find(t=>t.membros.includes(String(func.id))); }
 function pertenceAoModo(func,data) { return !MODO_5X2 || !!turmaColaborador(func,data); }
+function tabelaJovemAprendiz(tabela) { return /\b(jovem aprendiz|jovens aprendizes)\b/.test(normalizeStr(tabela?.titulo || '')); }
+function nomesAprendizesConfigurados() {
+    return tabelasExtrasConfig.filter(tabelaJovemAprendiz).flatMap(t=>[
+        ...(t.defaultRows || []).map(row=>row[t.colunas[0]]),
+        ...[...document.querySelectorAll('.linha-tbl-extra')].filter(el=>el.dataset.tbl===t.id).map(el=>el.querySelector('select')?.value)
+    ]).filter(Boolean);
+}
+function aprendizConfigurado(func) { return nomesAprendizesConfigurados().some(nome=>normalizeStr(nome)===normalizeStr(func.nome)); }
+function nomesAprendizesNoFormulario() {
+    return [...document.querySelectorAll('.linha-tbl-extra')].filter(el=>tabelaJovemAprendiz(tabelasExtrasConfig.find(t=>t.id===el.dataset.tbl))).map(el=>el.querySelector('select')?.value).filter(Boolean);
+}
 function regraTurma(func,data) {
     const turma=turmaColaborador(func,data);
     if (turma) {
@@ -117,7 +128,8 @@ function validarMembros5x2(data,nomes) {
     if (!MODO_5X2) return;
     if (!turmasNaData(data).some(t=>t.membros.length)) throw new Error('Nenhuma turma com membros está vigente nesta data.');
     const membros=new Set(funcionarios.filter(f=>pertenceAoModo(f,data)).map(f=>normalizeStr(f.nome)));
-    const invalidos=nomes.filter(n=>!membros.has(normalizeStr(n)));
+    const aprendizes=new Set(nomesAprendizesNoFormulario().map(normalizeStr));
+    const invalidos=nomes.filter(n=>!membros.has(normalizeStr(n)) && !aprendizes.has(normalizeStr(n)));
     if (invalidos.length) throw new Error('Sem turma 5×2 nesta data: '+invalidos.join(', ')+'. Ajuste a vigência ou retire da escala.');
 }
 

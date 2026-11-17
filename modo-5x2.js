@@ -30,10 +30,17 @@ function aprendizConfigurado(func) { return nomesAprendizesConfigurados().some(n
 function nomesAprendizesNoFormulario() {
     return [...document.querySelectorAll('.linha-tbl-extra')].filter(el=>tabelaJovemAprendiz(tabelasExtrasConfig.find(t=>t.id===el.dataset.tbl))).map(el=>el.querySelector('select')?.value).filter(Boolean);
 }
+function referenciaDomingo5x2(func,turma) {
+    const explicita=turma?.referencias?.[String(func.id)];
+    if (explicita) return explicita;
+    const regra=(func.regrasFolga || []).find(r=>r?.tipo==='ciclo' && String(r.dia)==='0'
+        && /^\d{4}-\d{2}-\d{2}$/.test(r.dataBase || '') && new Date(`${r.dataBase}T12:00:00Z`).getUTCDay()===0);
+    return regra?.dataBase || '';
+}
 function regraTurma(func,data) {
     const turma=turmaColaborador(func,data);
     if (turma) {
-        const ref=turma.referencias?.[String(func.id)];
+        const ref=referenciaDomingo5x2(func,turma);
         if (ref) {
             const atual=new Date(`${data}T12:00:00Z`),dia=atual.getUTCDay();
             const domingo=new Date(atual); domingo.setUTCDate(atual.getUTCDate()+(7-dia)%7);
@@ -73,7 +80,7 @@ function renderizarTurmasEdicao() {
         <p>Selecione dois dias de folga.</p><button type="button" class="btn-action" onclick="abrirSeletorTurma(${i})">🔍 Selecionar participantes (${t.membros.length})</button>
         <p>${t.membros.map(id=>escapeHTML(funcionarios.find(f=>String(f.id)===id)?.nome || 'Colaborador indisponível')).join(' · ') || 'Nenhum participante selecionado.'}</p>
         <label>Outra folga na semana do domingo<select onchange="turmasEdicao[${i}].diaMantido=Number(this.value)">${t.dias.filter(d=>d!==0).map(d=>`<option value="${d}" ${d===(t.diaMantido ?? (t.id==='a'?4:t.id==='b'?5:t.dias[1]))?'selected':''}>${dias[d]}</option>`).join('')}</select></label>
-        <p>Domingo de referência por pessoa: informe um domingo de folga. O próximo será 28 dias depois. Sem referência, só as folgas semanais são aplicadas.</p>
+        <p>Domingo de referência por pessoa: informe um domingo de folga. O próximo será 28 dias depois. Se este campo ficar vazio, usa o domingo de referência do ciclo individual, sempre com intervalo de 28 dias no 5×2. Sem nenhuma referência, o ciclo de domingos fica pendente.</p>
         ${t.membros.map(id=>`<label>${escapeHTML(funcionarios.find(f=>String(f.id)===id)?.nome || 'Colaborador')}<input type="date" value="${escapeHTML(t.referencias?.[id] || '')}" onchange="definirReferenciaDomingo(${i},decodeURIComponent('${encodeURIComponent(id)}'),this.value)"></label>`).join('')}
         <button type="button" class="btn-danger" onclick="turmasEdicao.splice(${i},1);renderizarTurmasEdicao()">Remover turma desta vigência</button></fieldset>`).join('');
     document.getElementById('turmasVersoes').textContent=versoesTurmas().length ? 'Vigências salvas: '+versoesTurmas().map(v=>formatarDataBR(v.inicio)).join(' · ') : 'Nenhuma vigência salva.';

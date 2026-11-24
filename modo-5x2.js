@@ -80,16 +80,29 @@ function renderizarTurmasEdicao() {
         <div class="turma-dias">${dias.map((dia,d)=>`<label><input type="checkbox" ${t.dias.includes(d)?'checked':''} onchange="editarDiaTurma(${i},${d},this.checked)">${dia}</label>`).join('')}</div>
         <p>Selecione dois dias de folga.</p><button type="button" class="btn-action" onclick="abrirSeletorTurma(${i})">🔍 Selecionar participantes (${t.membros.length})</button>
         <p>${t.membros.map(id=>escapeHTML(funcionarios.find(f=>String(f.id)===id)?.nome || 'Colaborador indisponível')).join(' · ') || 'Nenhum participante selecionado.'}</p>
-        <label>Outra folga na semana de domingo a sábado<select onchange="turmasEdicao[${i}].diaMantido=Number(this.value)">${t.dias.filter(d=>d!==0).map(d=>`<option value="${d}" ${d===(t.diaMantido ?? (t.id==='a'?4:t.id==='b'?5:t.dias[1]))?'selected':''}>${dias[d]}</option>`).join('')}</select></label>
+        <label>Outra folga na semana de domingo a sábado<select onchange="turmasEdicao[${i}].diaMantido=Number(this.value)">${t.dias.filter(d=>d!==0).map(d=>`<option value="${d}" ${d===Number(t.diaMantido ?? (t.id==='a'?4:t.id==='b'?5:t.dias[1]))?'selected':''}>${dias[d]}</option>`).join('')}</select></label>
         <p>Informe um domingo de folga por pessoa. A próxima folga será 21 dias depois, após dois domingos trabalhados. Com o campo vazio, vale o domingo de referência do cadastro individual. Sem referência, o ciclo de domingos fica pendente.</p>
-        ${t.membros.map(id=>`<label>${escapeHTML(funcionarios.find(f=>String(f.id)===id)?.nome || 'Colaborador')}<input type="date" value="${escapeHTML(t.referencias?.[id] || '')}" onchange="definirReferenciaDomingo(${i},decodeURIComponent('${encodeURIComponent(id)}'),this.value)"></label>`).join('')}
+        ${t.membros.map(id=>{
+            const pessoa=funcionarios.find(f=>String(f.id)===id);
+            const referencia=pessoa && referenciaDomingo5x2(pessoa,t);
+            const situacao=referencia ? `Ciclo de domingos a partir de ${formatarDataBR(referencia)}${t.referencias?.[id] ? '' : ' (cadastro individual)'}` : 'Sem domingo de referência';
+            return `<label>${escapeHTML(pessoa?.nome || 'Colaborador')}<input type="date" value="${escapeHTML(t.referencias?.[id] || '')}" onchange="definirReferenciaDomingo(${i},decodeURIComponent('${encodeURIComponent(id)}'),this.value,this)"><small>${escapeHTML(situacao)}</small></label>`;
+        }).join('')}
         <button type="button" class="btn-danger" onclick="turmasEdicao.splice(${i},1);renderizarTurmasEdicao()">Remover turma desta vigência</button></fieldset>`).join('');
     document.getElementById('turmasVersoes').textContent=versoesTurmas().length ? 'Vigências salvas: '+versoesTurmas().map(v=>formatarDataBR(v.inicio)).join(' · ') : 'Nenhuma vigência salva.';
 }
 function editarDiaTurma(i,d,marcado) { turmasEdicao[i].dias=marcado ? [...new Set([...turmasEdicao[i].dias,d])] : turmasEdicao[i].dias.filter(x=>x!==d); }
-function definirReferenciaDomingo(i,id,data) {
-    if(data && new Date(`${data}T12:00:00Z`).getUTCDay()!==0) return alert('Escolha um domingo como referência.');
+function definirReferenciaDomingo(i,id,data,campo) {
+    if(data && new Date(`${data}T12:00:00Z`).getUTCDay()!==0) {
+        if(campo) campo.value=turmasEdicao[i].referencias?.[id] || '';
+        return alert('Escolha um domingo como referência.');
+    }
     turmasEdicao[i].referencias={...turmasEdicao[i].referencias,[id]:data};
+    if(campo) {
+        const pessoa=funcionarios.find(f=>String(f.id)===id);
+        const referencia=pessoa && referenciaDomingo5x2(pessoa,turmasEdicao[i]);
+        campo.nextElementSibling.textContent=referencia ? `Ciclo de domingos a partir de ${formatarDataBR(referencia)}${data ? '' : ' (cadastro individual)'}` : 'Sem domingo de referência';
+    }
 }
 function editarMembroTurma(i,id,marcado) {
     const outra=turmasEdicao.findIndex((t,j)=>j!==i && t.membros.includes(id));

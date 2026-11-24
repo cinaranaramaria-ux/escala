@@ -38,6 +38,9 @@ function referenciaDomingo5x2(func,turma) {
         && /^\d{4}-\d{2}-\d{2}$/.test(r.dataBase || '') && new Date(`${r.dataBase}T12:00:00Z`).getUTCDay()===0);
     return regra?.dataBase || '';
 }
+function diaFolgaCasada(turma) {
+    return Number(turma.diaMantido ?? (turma.id==='a'?4:turma.id==='b'?5:turma.dias[1]));
+}
 function regraTurma(func,data) {
     const turma=turmaColaborador(func,data);
     if (turma) {
@@ -49,8 +52,7 @@ function regraTurma(func,data) {
             const base=new Date(`${ref}T12:00:00Z`);
             const dias=Math.round((domingo-base)/86400000);
             if (dias>=0 && dias%21===0) {
-                const mantido=turma.diaMantido ?? (turma.id==='a'?4:turma.id==='b'?5:turma.dias[1]);
-                return dia===0 || dia===Number(mantido) ? {tipo:'ciclo',desc:`Folga 5×2 — ${turma.nome} (semana de domingo)`} : null;
+                return dia===0 || dia===diaFolgaCasada(turma) ? {tipo:'ciclo',desc:`Folga 5×2 — ${turma.nome} (semana de domingo)`} : null;
             }
         }
     }
@@ -74,7 +76,16 @@ function conferirFolgasTurmas() {
             ? 'Indisponível' : folgantes.has(normalizeStr(f.nome)) ? 'Folga prevista' : 'Sem folga prevista';
         return `<li>${escapeHTML(f.nome)} · ${escapeHTML(turma.nome)} · ${situacao}${ref ? ` · referência ${escapeHTML(formatarDataBR(ref))}` : ' · sem referência de domingo'}</li>`;
     });
-    resultado.innerHTML=`<p>Regras salvas para ${escapeHTML(formatarDataBR(data))} · vigência de ${escapeHTML(formatarDataBR(vigencia.inicio))}. A escala publicada é consultada na aba Consultar Escalas.</p><ul>${linhas.join('')}</ul>`;
+    const dias=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+    const combinacoes=vigencia.turmas.map(t=>`${escapeHTML(t.nome)} · domingo e ${dias[diaFolgaCasada(t)] || 'dia indefinido'}`).join('<br>');
+    resultado.innerHTML=`<p>Regras salvas para ${escapeHTML(formatarDataBR(data))} · vigência de ${escapeHTML(formatarDataBR(vigencia.inicio))}.</p><p>${combinacoes}</p><button type="button" class="btn-action">Editar esta vigência</button><ul>${linhas.join('')}</ul>`;
+    resultado.querySelector('button').onclick=()=>{
+        if (!confirm('Carregar esta vigência no formulário? Alterações ainda não salvas no formulário serão descartadas.')) return;
+        const inicio=document.getElementById('turmasInicio');
+        inicio.value=vigencia.inicio;
+        carregarTurmasEdicao();
+        inicio.focus();
+    };
 }
 let turmasEdicao=[];
 function turmasIniciais() { return [{id:'a',nome:'Turma A',dias:[2,4],membros:[]},{id:'b',nome:'Turma B',dias:[3,5],membros:[]}]; }
@@ -101,7 +112,7 @@ function renderizarTurmasEdicao() {
         <div class="turma-dias">${dias.map((dia,d)=>`<label><input type="checkbox" ${t.dias.includes(d)?'checked':''} onchange="editarDiaTurma(${i},${d},this.checked)">${dia}</label>`).join('')}</div>
         <p>Selecione dois dias de folga.</p><button type="button" class="btn-action" onclick="abrirSeletorTurma(${i})">🔍 Selecionar participantes (${t.membros.length})</button>
         <p>${t.membros.map(id=>escapeHTML(funcionarios.find(f=>String(f.id)===id)?.nome || 'Colaborador indisponível')).join(' · ') || 'Nenhum participante selecionado.'}</p>
-        <label>Outra folga na semana de domingo a sábado<select onchange="turmasEdicao[${i}].diaMantido=Number(this.value)">${t.dias.filter(d=>d!==0).map(d=>`<option value="${d}" ${d===Number(t.diaMantido ?? (t.id==='a'?4:t.id==='b'?5:t.dias[1]))?'selected':''}>${dias[d]}</option>`).join('')}</select></label>
+        <label>Outra folga na semana de domingo a sábado<select onchange="turmasEdicao[${i}].diaMantido=Number(this.value)">${t.dias.filter(d=>d!==0).map(d=>`<option value="${d}" ${d===diaFolgaCasada(t)?'selected':''}>${dias[d]}</option>`).join('')}</select></label>
         <p>Informe um domingo de folga por pessoa. A próxima folga será 21 dias depois, após dois domingos trabalhados. Com o campo vazio, vale o domingo de referência do cadastro individual. Sem referência, o ciclo de domingos fica pendente.</p>
         ${t.membros.map(id=>{
             const pessoa=funcionarios.find(f=>String(f.id)===id);

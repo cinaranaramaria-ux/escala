@@ -47,7 +47,7 @@ function regraTurma(func,data) {
             domingo.setUTCDate(atual.getUTCDate()-dia);
             const base=new Date(`${ref}T12:00:00Z`);
             const dias=Math.round((domingo-base)/86400000);
-            if (dias>=0 && dias%28===0) {
+            if (dias>=0 && dias%21===0) {
                 const mantido=turma.diaMantido ?? (turma.id==='a'?4:turma.id==='b'?5:turma.dias[1]);
                 return dia===0 || dia===Number(mantido) ? {tipo:'ciclo',desc:`Folga 5×2 — ${turma.nome} (semana de domingo)`} : null;
             }
@@ -81,7 +81,7 @@ function renderizarTurmasEdicao() {
         <p>Selecione dois dias de folga.</p><button type="button" class="btn-action" onclick="abrirSeletorTurma(${i})">🔍 Selecionar participantes (${t.membros.length})</button>
         <p>${t.membros.map(id=>escapeHTML(funcionarios.find(f=>String(f.id)===id)?.nome || 'Colaborador indisponível')).join(' · ') || 'Nenhum participante selecionado.'}</p>
         <label>Outra folga na semana de domingo a sábado<select onchange="turmasEdicao[${i}].diaMantido=Number(this.value)">${t.dias.filter(d=>d!==0).map(d=>`<option value="${d}" ${d===(t.diaMantido ?? (t.id==='a'?4:t.id==='b'?5:t.dias[1]))?'selected':''}>${dias[d]}</option>`).join('')}</select></label>
-        <p>Domingo de referência por pessoa: informe um domingo de folga. O próximo será 28 dias depois. Se este campo ficar vazio, usa o domingo de referência do ciclo individual, sempre com intervalo de 28 dias no 5×2. Sem nenhuma referência, o ciclo de domingos fica pendente.</p>
+        <p>Informe um domingo de folga por pessoa. A próxima folga será 21 dias depois, após dois domingos trabalhados. Com o campo vazio, vale o domingo de referência do cadastro individual. Sem referência, o ciclo de domingos fica pendente.</p>
         ${t.membros.map(id=>`<label>${escapeHTML(funcionarios.find(f=>String(f.id)===id)?.nome || 'Colaborador')}<input type="date" value="${escapeHTML(t.referencias?.[id] || '')}" onchange="definirReferenciaDomingo(${i},decodeURIComponent('${encodeURIComponent(id)}'),this.value)"></label>`).join('')}
         <button type="button" class="btn-danger" onclick="turmasEdicao.splice(${i},1);renderizarTurmasEdicao()">Remover turma desta vigência</button></fieldset>`).join('');
     document.getElementById('turmasVersoes').textContent=versoesTurmas().length ? 'Vigências salvas: '+versoesTurmas().map(v=>formatarDataBR(v.inicio)).join(' · ') : 'Nenhuma vigência salva.';

@@ -605,7 +605,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="modo-5x2.js?v=20261124-folga-casada"></script>
+    <script src="modo-5x2.js?v=20261124-ciclo-21"></script>
     <script src="app-reliability.js?v=20261108-modos"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
@@ -937,7 +937,7 @@
         /**
          * Busca a lista completa de funcionários cadastrados no banco via webhook GET.
          */
-        async function carregarFuncionariosNuvem() {
+        async function carregarFuncionariosNuvem(atualizarTelas=true) {
             estadoEscala.funcionariosCarregados = false;
             try {
                 const res = await fetchAPI(N8N_GET_FUNC);
@@ -1018,7 +1018,7 @@
                 });
 
                 estadoEscala.funcionariosCarregados = true;
-                if (!estadoEscala.inicializando) {
+                if (atualizarTelas && !estadoEscala.inicializando) {
                     if (typeof renderizarListaFunc === 'function') renderizarListaFunc();
                     if (typeof atualizarListaFolgantesPrevistos === 'function') atualizarListaFolgantesPrevistos();
                     if (typeof renderizarCalendario === 'function') renderizarCalendario();
@@ -1883,13 +1883,15 @@
         }
 
         function montarEscalaDoPadrao(data, padrao, equipe, feriado) {
+            const equipePorNome=new Map(equipe.map(f=>[normalizeStr(f.nome),f]));
             const folgas=nomesUnicos(nomesFolgaConfigurada(data,equipe).join(','));
             const indisponiveis=new Set(equipe.filter(f=>isDesativado(f,data) || isDeFerias(f,data) || getObjAusencia(f,data)).map(f=>normalizeStr(f.nome)));
             const usados=new Set([...folgas.map(normalizeStr),...indisponiveis]);
             const reservar=(nome,aprendiz=false)=>{
                 const chave=normalizeStr(nome);
-                if (MODO_5X2 && !aprendiz && !equipe.some(f=>normalizeStr(f.nome)===chave && pertenceAoModo(f,data))) return false;
-                if (!chave || usados.has(chave)) return false;
+                const colaborador=equipePorNome.get(chave);
+                if (!chave || !colaborador || usados.has(chave)) return false;
+                if (MODO_5X2 && !aprendiz && !pertenceAoModo(colaborador,data)) return false;
                 usados.add(chave); return true;
             };
             const turnos={};
@@ -1928,7 +1930,8 @@
         async function gerarEscalasDoMes(substituir=false) {
             if (geracaoMesEmCurso || carregandoRegrasMes) return;
             carregandoRegrasMes=true;
-            try { await carregarConfiguracoes(); } finally { carregandoRegrasMes=false; }
+            try { await Promise.all([carregarConfiguracoes(), carregarFuncionariosNuvem(false)]); }
+            finally { carregandoRegrasMes=false; }
             const mes=document.getElementById('mes_previsao')?.value;
             if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes||'')) return alert('Selecione um mês válido.');
             if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) return alert('Carregue as configurações e os colaboradores do servidor antes de gerar o mês.');

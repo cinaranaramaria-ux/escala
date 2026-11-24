@@ -145,6 +145,8 @@
         <p>Colaboradores, férias e ausências usam o cadastro compartilhado. As folgas semanais deste modo seguem as turmas abaixo.</p>
         <label>Vigência a partir de<input id="turmasInicio" type="date" onchange="carregarTurmasEdicao()"></label>
         <p id="turmasVersoes"></p><div id="turmasLista"></div>
+        <div class="monthly-holiday-fields"><label>Conferir regra salva na data<input id="dataConferenciaTurmas" type="date"></label><button type="button" class="btn-action" onclick="conferirFolgasTurmas()">Conferir folgas</button></div>
+        <div id="resultadoConferenciaTurmas" role="status"></div>
         <div class="status-actions"><button type="button" class="btn-action" onclick="adicionarTurma()">Adicionar turma</button><button id="salvarTurmas" type="button" class="btn-action" onclick="salvarTurmas5x2()">Salvar turmas</button><button type="button" class="btn-action" onclick="recuperarTurmasEdicao()">Recuperar alterações pendentes</button></div><p id="turmasStatus" role="status" aria-live="polite"></p>
     </details></section>
     <div class="print-block-message">IMPRESSÃO BLOQUEADA — A escala não foi salva e confirmada. Volte ao sistema, salve ou atualize a consulta antes de imprimir.</div>
@@ -605,7 +607,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="modo-5x2.js?v=20261124-referencia-visivel"></script>
+    <script src="modo-5x2.js?v=20261124-conferir-folgas"></script>
     <script src="app-reliability.js?v=20261108-modos"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */

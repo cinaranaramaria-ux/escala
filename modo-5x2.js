@@ -10,9 +10,10 @@ function urlModo(url) {
     return destino.href;
 }
 function versoesTurmas() { return Array.isArray(alertasConfig.turmas5x2) ? alertasConfig.turmas5x2 : []; }
-function turmasNaData(data) {
-    return [...versoesTurmas()].filter(v=>v.inicio<=data).sort((a,b)=>b.inicio.localeCompare(a.inicio))[0]?.turmas || [];
+function vigenciaTurmasNaData(data) {
+    return [...versoesTurmas()].filter(v=>v.inicio<=data).sort((a,b)=>b.inicio.localeCompare(a.inicio))[0];
 }
+function turmasNaData(data) { return vigenciaTurmasNaData(data)?.turmas || []; }
 function turmaColaborador(func,data) { return turmasNaData(data).find(t=>t.membros.includes(String(func.id))); }
 function pertenceAoModo(func,data) { return !MODO_5X2 || !!turmaColaborador(func,data); }
 function regraTabelaExtra(tabela) {
@@ -54,6 +55,26 @@ function regraTurma(func,data) {
         }
     }
     return turma?.dias.includes(new Date(`${data}T12:00:00`).getDay()) ? {tipo:'fixa',desc:`Folga 5×2 — ${turma.nome}`} : null;
+}
+function conferirFolgasTurmas() {
+    const data=document.getElementById('dataConferenciaTurmas').value;
+    const resultado=document.getElementById('resultadoConferenciaTurmas');
+    if (!data) { resultado.textContent='Escolha a data da escala.'; return; }
+    if (!estadoEscala.configCarregada || !estadoEscala.funcionariosCarregados) {
+        resultado.textContent='Carregue as configurações e o cadastro antes de conferir as folgas.';
+        return;
+    }
+    const vigencia=vigenciaTurmasNaData(data);
+    if (!vigencia) { resultado.textContent='Nenhuma turma salva está vigente nessa data.'; return; }
+    const folgantes=new Set(nomesFolgaConfigurada(data).map(normalizeStr));
+    const linhas=funcionarios.filter(f=>turmaColaborador(f,data)).map(f=>{
+        const turma=turmaColaborador(f,data);
+        const ref=referenciaDomingo5x2(f,turma);
+        const situacao=isDesativado(f,data) || isDeFerias(f,data) || getObjAusencia(f,data)
+            ? 'Indisponível' : folgantes.has(normalizeStr(f.nome)) ? 'Folga prevista' : 'Sem folga prevista';
+        return `<li>${escapeHTML(f.nome)} · ${escapeHTML(turma.nome)} · ${situacao}${ref ? ` · referência ${escapeHTML(formatarDataBR(ref))}` : ' · sem referência de domingo'}</li>`;
+    });
+    resultado.innerHTML=`<p>Regras salvas para ${escapeHTML(formatarDataBR(data))} · vigência de ${escapeHTML(formatarDataBR(vigencia.inicio))}. A escala publicada é consultada na aba Consultar Escalas.</p><ul>${linhas.join('')}</ul>`;
 }
 let turmasEdicao=[];
 function turmasIniciais() { return [{id:'a',nome:'Turma A',dias:[2,4],membros:[]},{id:'b',nome:'Turma B',dias:[3,5],membros:[]}]; }

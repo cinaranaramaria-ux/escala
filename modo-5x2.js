@@ -43,7 +43,8 @@ function regraTurma(func,data) {
         const ref=referenciaDomingo5x2(func,turma);
         if (ref) {
             const atual=new Date(`${data}T12:00:00Z`),dia=atual.getUTCDay();
-            const domingo=new Date(atual); domingo.setUTCDate(atual.getUTCDate()+(7-dia)%7);
+            const domingo=new Date(atual);
+            domingo.setUTCDate(atual.getUTCDate()-dia);
             const base=new Date(`${ref}T12:00:00Z`);
             const dias=Math.round((domingo-base)/86400000);
             if (dias>=0 && dias%28===0) {
@@ -79,7 +80,7 @@ function renderizarTurmasEdicao() {
         <div class="turma-dias">${dias.map((dia,d)=>`<label><input type="checkbox" ${t.dias.includes(d)?'checked':''} onchange="editarDiaTurma(${i},${d},this.checked)">${dia}</label>`).join('')}</div>
         <p>Selecione dois dias de folga.</p><button type="button" class="btn-action" onclick="abrirSeletorTurma(${i})">🔍 Selecionar participantes (${t.membros.length})</button>
         <p>${t.membros.map(id=>escapeHTML(funcionarios.find(f=>String(f.id)===id)?.nome || 'Colaborador indisponível')).join(' · ') || 'Nenhum participante selecionado.'}</p>
-        <label>Outra folga na semana do domingo<select onchange="turmasEdicao[${i}].diaMantido=Number(this.value)">${t.dias.filter(d=>d!==0).map(d=>`<option value="${d}" ${d===(t.diaMantido ?? (t.id==='a'?4:t.id==='b'?5:t.dias[1]))?'selected':''}>${dias[d]}</option>`).join('')}</select></label>
+        <label>Outra folga na semana de domingo a sábado<select onchange="turmasEdicao[${i}].diaMantido=Number(this.value)">${t.dias.filter(d=>d!==0).map(d=>`<option value="${d}" ${d===(t.diaMantido ?? (t.id==='a'?4:t.id==='b'?5:t.dias[1]))?'selected':''}>${dias[d]}</option>`).join('')}</select></label>
         <p>Domingo de referência por pessoa: informe um domingo de folga. O próximo será 28 dias depois. Se este campo ficar vazio, usa o domingo de referência do ciclo individual, sempre com intervalo de 28 dias no 5×2. Sem nenhuma referência, o ciclo de domingos fica pendente.</p>
         ${t.membros.map(id=>`<label>${escapeHTML(funcionarios.find(f=>String(f.id)===id)?.nome || 'Colaborador')}<input type="date" value="${escapeHTML(t.referencias?.[id] || '')}" onchange="definirReferenciaDomingo(${i},decodeURIComponent('${encodeURIComponent(id)}'),this.value)"></label>`).join('')}
         <button type="button" class="btn-danger" onclick="turmasEdicao.splice(${i},1);renderizarTurmasEdicao()">Remover turma desta vigência</button></fieldset>`).join('');

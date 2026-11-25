@@ -41,9 +41,16 @@ function referenciaDomingo5x2(func,turma) {
 function diaFolgaCasada(turma) {
     return Number(turma.diaMantido ?? (turma.id==='a'?4:turma.id==='b'?5:turma.dias[1]));
 }
+function folgaFixaDomSeg(turma, id) {
+    return turma?.folgasFixasDomSeg?.includes(String(id)) ?? false;
+}
 function regraTurma(func,data) {
     const turma=turmaColaborador(func,data);
     if (turma) {
+        if (folgaFixaDomSeg(turma,func.id)) {
+            const dia=new Date(`${data}T12:00:00Z`).getUTCDay();
+            return dia===0 || dia===1 ? {tipo:'fixa',desc:'Folga fixa — domingo e segunda'} : null;
+        }
         const ref=referenciaDomingo5x2(func,turma);
         if (ref) {
             const atual=new Date(`${data}T12:00:00Z`),dia=atual.getUTCDay();
@@ -74,7 +81,8 @@ function conferirFolgasTurmas() {
         const ref=referenciaDomingo5x2(f,turma);
         const situacao=isDesativado(f,data) || isDeFerias(f,data) || getObjAusencia(f,data)
             ? 'Indisponível' : folgantes.has(normalizeStr(f.nome)) ? 'Folga prevista' : 'Sem folga prevista';
-        return `<li>${escapeHTML(f.nome)} · ${escapeHTML(turma.nome)} · ${situacao}${ref ? ` · referência ${escapeHTML(formatarDataBR(ref))}` : ' · sem referência de domingo'}</li>`;
+        const regra=folgaFixaDomSeg(turma,f.id) ? ' · folgas fixas domingo e segunda' : ref ? ` · referência ${escapeHTML(formatarDataBR(ref))}` : ' · sem referência de domingo';
+        return `<li>${escapeHTML(f.nome)} · ${escapeHTML(turma.nome)} · ${situacao}${regra}</li>`;
     });
     const dias=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
     const combinacoes=vigencia.turmas.map(t=>`${escapeHTML(t.nome)} · domingo e ${dias[diaFolgaCasada(t)] || 'dia indefinido'}`).join('<br>');
@@ -118,12 +126,21 @@ function renderizarTurmasEdicao() {
             const pessoa=funcionarios.find(f=>String(f.id)===id);
             const referencia=pessoa && referenciaDomingo5x2(pessoa,t);
             const situacao=referencia ? `Ciclo de domingos a partir de ${formatarDataBR(referencia)}${t.referencias?.[id] ? '' : ' (cadastro individual)'}` : 'Sem domingo de referência';
-            return `<label>${escapeHTML(pessoa?.nome || 'Colaborador')}<input type="date" value="${escapeHTML(t.referencias?.[id] || '')}" onchange="definirReferenciaDomingo(${i},decodeURIComponent('${encodeURIComponent(id)}'),this.value,this)"><small>${escapeHTML(situacao)}</small></label>`;
+            const argumento=`decodeURIComponent('${encodeURIComponent(id).replaceAll("'",'%27')}')`;
+            const fixa=folgaFixaDomSeg(t,id);
+            return `<div><label>${escapeHTML(pessoa?.nome || 'Colaborador')}<input type="date" value="${escapeHTML(t.referencias?.[id] || '')}" ${fixa?'disabled':''} onchange="definirReferenciaDomingo(${i},${argumento},this.value,this)"><small>${escapeHTML(fixa ? 'Folgas fixas aos domingos e às segundas' : situacao)}</small></label><label><input type="checkbox" ${fixa?'checked':''} onchange="definirFolgaFixaDomSeg(${i},${argumento},this.checked)"> Folgar todo domingo e segunda</label></div>`;
         }).join('')}
         <button type="button" class="btn-danger" onclick="turmasEdicao.splice(${i},1);renderizarTurmasEdicao()">Remover turma desta vigência</button></fieldset>`).join('');
     document.getElementById('turmasVersoes').textContent=versoesTurmas().length ? 'Vigências salvas: '+versoesTurmas().map(v=>formatarDataBR(v.inicio)).join(' · ') : 'Nenhuma vigência salva.';
 }
 function editarDiaTurma(i,d,marcado) { turmasEdicao[i].dias=marcado ? [...new Set([...turmasEdicao[i].dias,d])] : turmasEdicao[i].dias.filter(x=>x!==d); }
+function definirFolgaFixaDomSeg(i,id,marcada) {
+    const ids=new Set(turmasEdicao[i].folgasFixasDomSeg || []);
+    if (marcada) ids.add(id);
+    else ids.delete(id);
+    turmasEdicao[i].folgasFixasDomSeg=[...ids];
+    renderizarTurmasEdicao();
+}
 function definirReferenciaDomingo(i,id,data,campo) {
     if(data && new Date(`${data}T12:00:00Z`).getUTCDay()!==0) {
         if(campo) campo.value=turmasEdicao[i].referencias?.[id] || '';

@@ -607,7 +607,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="modo-5x2.js?v=20261124-vigencia-folga"></script>
+    <script src="modo-5x2.js?v=20261124-folga-fixa-individual"></script>
     <script src="app-reliability.js?v=20261108-modos"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
@@ -1781,7 +1781,7 @@
 
         function getObjRegraFolgaCombinada(func, dataISO) {
             if (isDesativado(func, dataISO) || isDeFerias(func, dataISO) || getObjAusencia(func, dataISO)) return null;
-            if (MODO_5X2 && !aprendizConfigurado(func)) return regraTurma(func,dataISO);
+            if (MODO_5X2 && (folgaFixaDomSeg(turmaColaborador(func,dataISO),func.id) || !aprendizConfigurado(func))) return regraTurma(func,dataISO);
             if (!func.regrasFolga || !Array.isArray(func.regrasFolga)) return null;
 
             const dtEsc = new Date(dataISO + 'T00:00:00');
@@ -1801,7 +1801,7 @@
         }
 
         function getObjFolgaExtra(func, dataISO) {
-            if (MODO_5X2 && !aprendizConfigurado(func)) return null;
+            if (MODO_5X2 && (folgaFixaDomSeg(turmaColaborador(func,dataISO),func.id) || !aprendizConfigurado(func))) return null;
             if (isDesativado(func, dataISO) || isDeFerias(func, dataISO) || getObjAusencia(func, dataISO)) return null;
             if (!func.folgasExtras || !Array.isArray(func.folgasExtras)) return null;
             return func.folgasExtras.find(item => item.data === dataISO) || null;

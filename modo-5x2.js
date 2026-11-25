@@ -41,15 +41,30 @@ function referenciaDomingo5x2(func,turma) {
 function diaFolgaCasada(turma) {
     return Number(turma.diaMantido ?? (turma.id==='a'?4:turma.id==='b'?5:turma.dias[1]));
 }
-function folgaFixaDomSeg(turma, id) {
-    return turma?.folgasFixasDomSeg?.includes(String(id)) ?? false;
+const diasCurtos = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+function regraFixaNoDia(regra,dia) {
+    return regra?.tipo==='fixa' && String(regra.dia)===String(dia);
+}
+function diasFixosCadastro(func) {
+    return diasCurtos.map((_,dia)=>dia).filter(dia=>(func?.regrasFolga || []).some(r=>regraFixaNoDia(r,dia)));
+}
+function fonteFolgas(turma,id) {
+    if (turma?.usarFixasCadastro?.includes(String(id))) return 'cadastro';
+    if (turma?.folgasFixasDomSeg?.includes(String(id))) return 'anterior';
+    return 'turma';
+}
+function diasFixosDaTurma(func,turma) {
+    const fonte=fonteFolgas(turma,func.id);
+    if (fonte==='anterior') return [0,1];
+    return fonte==='cadastro' ? diasFixosCadastro(func) : [];
 }
 function regraTurma(func,data) {
     const turma=turmaColaborador(func,data);
     if (turma) {
-        if (folgaFixaDomSeg(turma,func.id)) {
+        const fixos=diasFixosDaTurma(func,turma);
+        if (fixos.length) {
             const dia=new Date(`${data}T12:00:00Z`).getUTCDay();
-            return dia===0 || dia===1 ? {tipo:'fixa',desc:'Folga fixa — domingo e segunda'} : null;
+            return fixos.includes(dia) ? {tipo:'fixa',desc:'Folga fixa individual'} : null;
         }
         const ref=referenciaDomingo5x2(func,turma);
         if (ref) {
@@ -81,7 +96,8 @@ function conferirFolgasTurmas() {
         const ref=referenciaDomingo5x2(f,turma);
         const situacao=isDesativado(f,data) || isDeFerias(f,data) || getObjAusencia(f,data)
             ? 'Indisponível' : folgantes.has(normalizeStr(f.nome)) ? 'Folga prevista' : 'Sem folga prevista';
-        const regra=folgaFixaDomSeg(turma,f.id) ? ' · folgas fixas domingo e segunda' : ref ? ` · referência ${escapeHTML(formatarDataBR(ref))}` : ' · sem referência de domingo';
+        const fixos=diasFixosDaTurma(f,turma);
+        const regra=fixos.length ? ' · folgas fixas '+fixos.map(d=>diasCurtos[d]).join(' e ') : ref ? ` · referência ${escapeHTML(formatarDataBR(ref))}` : ' · sem referência de domingo';
         return `<li>${escapeHTML(f.nome)} · ${escapeHTML(turma.nome)} · ${situacao}${regra}</li>`;
     });
     const dias=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
@@ -99,7 +115,9 @@ let turmasEdicao=[];
 function turmasIniciais() { return [{id:'a',nome:'Turma A',dias:[2,4],membros:[]},{id:'b',nome:'Turma B',dias:[3,5],membros:[]}]; }
 function inicializarModoUI() {
     document.getElementById('modoAtualNome').textContent=MODO_5X2 ? 'Escala 5×2' : 'Escala atual';
-    document.getElementById('turmas5x2').hidden=!MODO_5X2;
+    const opcao=document.querySelector('#mobileNavSelect option[value="turmas5x2"]');
+    opcao.hidden=opcao.disabled=!MODO_5X2;
+    document.querySelector('[data-tab="turmas5x2"]').hidden=!MODO_5X2;
     if (!MODO_5X2) return;
     document.title='Escalas — modo 5×2';
     document.getElementById('turmasInicio').value=getHojeISO();
@@ -119,27 +137,46 @@ function renderizarTurmasEdicao() {
         <label>Nome da turma<input type="text" value="${escapeHTML(t.nome)}" maxlength="60" onchange="turmasEdicao[${i}].nome=this.value"></label>
         <div class="turma-dias">${dias.map((dia,d)=>`<label><input type="checkbox" ${t.dias.includes(d)?'checked':''} onchange="editarDiaTurma(${i},${d},this.checked)">${dia}</label>`).join('')}</div>
         <p>Selecione dois dias de folga.</p><button type="button" class="btn-action" onclick="abrirSeletorTurma(${i})">🔍 Selecionar participantes (${t.membros.length})</button>
-        <p>${t.membros.map(id=>escapeHTML(funcionarios.find(f=>String(f.id)===id)?.nome || 'Colaborador indisponível')).join(' · ') || 'Nenhum participante selecionado.'}</p>
         <label>Outra folga na semana de domingo a sábado<select onchange="turmasEdicao[${i}].diaMantido=Number(this.value)">${t.dias.filter(d=>d!==0).map(d=>`<option value="${d}" ${d===diaFolgaCasada(t)?'selected':''}>${dias[d]}</option>`).join('')}</select></label>
-        <p>Informe um domingo de folga por pessoa. A próxima folga será 21 dias depois, após dois domingos trabalhados. Com o campo vazio, vale o domingo de referência do cadastro individual. Sem referência, o ciclo de domingos fica pendente.</p>
-        ${t.membros.map(id=>{
-            const pessoa=funcionarios.find(f=>String(f.id)===id);
-            const referencia=pessoa && referenciaDomingo5x2(pessoa,t);
-            const situacao=referencia ? `Ciclo de domingos a partir de ${formatarDataBR(referencia)}${t.referencias?.[id] ? '' : ' (cadastro individual)'}` : 'Sem domingo de referência';
-            const argumento=`decodeURIComponent('${encodeURIComponent(id).replaceAll("'",'%27')}')`;
-            const fixa=folgaFixaDomSeg(t,id);
-            return `<div><label>${escapeHTML(pessoa?.nome || 'Colaborador')}<input type="date" value="${escapeHTML(t.referencias?.[id] || '')}" ${fixa?'disabled':''} onchange="definirReferenciaDomingo(${i},${argumento},this.value,this)"><small>${escapeHTML(fixa ? 'Folgas fixas aos domingos e às segundas' : situacao)}</small></label><label><input type="checkbox" ${fixa?'checked':''} onchange="definirFolgaFixaDomSeg(${i},${argumento},this.checked)"> Folgar todo domingo e segunda</label></div>`;
-        }).join('')}
+        <details><summary>Regras por participante</summary>
+        <label>Participante<select aria-label="Participante" class="participante-regra" onchange="mostrarRegraParticipante(${i},this)"><option value="">Selecione para consultar ou editar</option>${t.membros.map(id=>`<option value="${escapeHTML(id)}">${escapeHTML(funcionarios.find(f=>String(f.id)===id)?.nome || 'Colaborador indisponível')}</option>`).join('')}</select></label>
+        <div class="regra-participante"></div></details>
         <button type="button" class="btn-danger" onclick="turmasEdicao.splice(${i},1);renderizarTurmasEdicao()">Remover turma desta vigência</button></fieldset>`).join('');
     document.getElementById('turmasVersoes').textContent=versoesTurmas().length ? 'Vigências salvas: '+versoesTurmas().map(v=>formatarDataBR(v.inicio)).join(' · ') : 'Nenhuma vigência salva.';
 }
 function editarDiaTurma(i,d,marcado) { turmasEdicao[i].dias=marcado ? [...new Set([...turmasEdicao[i].dias,d])] : turmasEdicao[i].dias.filter(x=>x!==d); }
-function definirFolgaFixaDomSeg(i,id,marcada) {
-    const ids=new Set(turmasEdicao[i].folgasFixasDomSeg || []);
-    if (marcada) ids.add(id);
-    else ids.delete(id);
-    turmasEdicao[i].folgasFixasDomSeg=[...ids];
-    renderizarTurmasEdicao();
+function mostrarRegraParticipante(i,seletor) {
+    const painel=seletor.closest('details').querySelector('.regra-participante');
+    const id=seletor.value, turma=turmasEdicao[i], pessoa=funcionarios.find(f=>String(f.id)===id);
+    painel.replaceChildren();
+    if (!pessoa) return;
+    const fonte=fonteFolgas(turma,id), dias=diasFixosCadastro(pessoa);
+    const resumo=dias.map(d=>diasCurtos[d]).join(' e ');
+    painel.innerHTML=`<label>Folga semanal<select class="fonte-folga">
+        <option value="turma">Seguir turma e ciclo de domingos</option>
+        <option value="cadastro" ${!dias.length && fonte!=='cadastro'?'disabled':''}>Usar dias fixos do cadastro${resumo?' · '+resumo:''}</option>
+        ${fonte==='anterior'?'<option value="anterior">Dom e Seg · exceção já salva</option>':''}</select></label>
+        <small>Escolha os dias em Base/Regras → Fixa Semanal. Esse cadastro é compartilhado entre os modos. Sem dias fixos cadastrados, vale a regra da turma.</small>
+        <button type="button" class="btn-action">Editar cadastro individual</button>`;
+    painel.querySelector('button').onclick=()=>{
+        openTab('funcionarios');
+        editarFunc(pessoa.id);
+    };
+    const escolha=painel.querySelector('select');
+    escolha.value=fonte;
+    escolha.onchange=()=>{
+        turma.usarFixasCadastro=(turma.usarFixasCadastro || []).filter(x=>x!==id);
+        turma.folgasFixasDomSeg=(turma.folgasFixasDomSeg || []).filter(x=>x!==id);
+        if (escolha.value==='cadastro') turma.usarFixasCadastro.push(id);
+        mostrarRegraParticipante(i,seletor);
+    };
+    if (!diasFixosDaTurma(pessoa,turma).length) {
+        const ref=referenciaDomingo5x2(pessoa,turma);
+        painel.insertAdjacentHTML('beforeend',`<label>Domingo de referência<input type="date"><small>${ref?'Ciclo a partir de '+escapeHTML(formatarDataBR(ref)):'Sem domingo de referência'}</small></label>`);
+        const campo=painel.querySelector('input');
+        campo.value=turma.referencias?.[id] || '';
+        campo.onchange=()=>definirReferenciaDomingo(i,id,campo.value,campo);
+    }
 }
 function definirReferenciaDomingo(i,id,data,campo) {
     if(data && new Date(`${data}T12:00:00Z`).getUTCDay()!==0) {
@@ -223,8 +260,16 @@ function confirmarSeletorTurma() {
     const ids=[...document.querySelectorAll('#modalCheckboxesList input:checked')].map(el=>el.value);
     const outros=turmasEdicao.filter((t,i)=>i!==turmaSelecionadaIndex && t.membros.some(id=>ids.includes(id)));
     if(outros.length && !confirm('Transferir os participantes selecionados das outras turmas para esta turma?')) return;
-    const referencias=Object.assign({},...turmasEdicao.map(t=>t.referencias || {}));
-    turmasEdicao[turmaSelecionadaIndex].referencias={...referencias,...turmasEdicao[turmaSelecionadaIndex].referencias};
+    const destino=turmasEdicao[turmaSelecionadaIndex];
+    for (const turma of outros) {
+        for (const id of turma.membros.filter(id=>ids.includes(id))) {
+            destino.referencias={...destino.referencias,[id]:turma.referencias?.[id] || ''};
+            for (const chave of ['usarFixasCadastro','folgasFixasDomSeg']) {
+                destino[chave]=(destino[chave] || []).filter(x=>x!==id);
+                if (turma[chave]?.includes(id)) destino[chave].push(id);
+            }
+        }
+    }
     turmasEdicao.forEach((t,i)=>{t.membros=i===turmaSelecionadaIndex?ids:t.membros.filter(id=>!ids.includes(id));});
     renderizarTurmasEdicao();closeMultiSelectModal();
 }

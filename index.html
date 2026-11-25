@@ -141,14 +141,7 @@
 <body>
     <h1 class="sr-only">Gerenciador de Escalas</h1>
     <div class="mode-bar print-hide"><strong id="modoAtualNome">Escala atual</strong><a href="inicio.html">Trocar modo</a></div>
-    <section id="turmas5x2" class="card print-hide" hidden><details><summary><strong>Turmas e folgas — 5×2</strong></summary>
-        <p>Colaboradores, férias e ausências usam o cadastro compartilhado. As folgas semanais deste modo seguem as turmas abaixo.</p>
-        <label>Vigência a partir de<input id="turmasInicio" type="date" onchange="carregarTurmasEdicao()"></label>
-        <p id="turmasVersoes"></p><div id="turmasLista"></div>
-        <div class="monthly-holiday-fields"><label>Conferir regra salva na data<input id="dataConferenciaTurmas" type="date"></label><button type="button" class="btn-action" onclick="conferirFolgasTurmas()">Conferir folgas</button></div>
-        <div id="resultadoConferenciaTurmas" role="status"></div>
-        <div class="status-actions"><button type="button" class="btn-action" onclick="adicionarTurma()">Adicionar turma</button><button id="salvarTurmas" type="button" class="btn-action" onclick="salvarTurmas5x2()">Salvar turmas</button><button type="button" class="btn-action" onclick="recuperarTurmasEdicao()">Recuperar alterações pendentes</button></div><p id="turmasStatus" role="status" aria-live="polite"></p>
-    </details></section>
+
     <div class="print-block-message">IMPRESSÃO BLOQUEADA — A escala não foi salva e confirmada. Volte ao sistema, salve ou atualize a consulta antes de imprimir.</div>
     <div id="statusSalvamento" class="save-status print-hide" data-estado="pendente" role="status" aria-live="polite">
         <strong data-status-text>Preencha a escala. A impressão será liberada após salvar e confirmar.</strong>
@@ -169,6 +162,7 @@
         <option value="previsao">📆 Calendário e Previsão</option>
         <option value="ausencias">📋 Relatório de Ausências</option>
         <option value="funcionarios">👥 Base/Regras</option>
+        <option hidden disabled value="turmas5x2">Turmas 5×2</option>
         <option value="configuracoes">⚙️ Regras de Negócio</option>
     </select>
     <nav class="tabs print-hide" aria-label="Seções do sistema">
@@ -178,7 +172,18 @@
         <button class="tab-btn" data-tab="ausencias" onclick="openTab('ausencias')">📋 Relatório de Ausências</button>
         <button class="tab-btn" data-tab="funcionarios" onclick="openTab('funcionarios')">👥 Base/Regras</button>
         <button class="tab-btn" data-tab="configuracoes" onclick="openTab('configuracoes')">⚙️ Regras de Negócio</button>
+        <button hidden class="tab-btn" data-tab="turmas5x2" onclick="openTab('turmas5x2')">Turmas 5×2</button>
     </nav>
+    <section id="turmas5x2" class="tab-content print-hide"><div class="card"><h2>Turmas e folgas 5×2</h2>
+        <p>Colaboradores, férias e ausências usam o cadastro compartilhado. As folgas semanais deste modo seguem as turmas abaixo.</p>
+        <label>Vigência a partir de<input id="turmasInicio" type="date" onchange="carregarTurmasEdicao()"></label>
+        <p id="turmasVersoes"></p><div id="turmasLista"></div>
+        <div class="status-actions"><button type="button" class="btn-action" onclick="adicionarTurma()">Adicionar turma</button><button id="salvarTurmas" type="button" class="btn-action" onclick="salvarTurmas5x2()">Salvar turmas</button><button type="button" class="btn-action" onclick="recuperarTurmasEdicao()">Recuperar alterações pendentes</button></div><p id="turmasStatus" role="status" aria-live="polite"></p>
+        <details><summary>Conferir folgas por data</summary>
+        <div class="monthly-holiday-fields"><label>Conferir regra salva na data<input id="dataConferenciaTurmas" type="date"></label><button type="button" class="btn-action" onclick="conferirFolgasTurmas()">Conferir folgas</button></div>
+        <div id="resultadoConferenciaTurmas" role="status"></div>
+        </details>
+    </div></section>
 
     <!-- ABA 1: CALENDÁRIO PREVISÃO GERAL -->
     <div id="previsao" class="tab-content print-hide">
@@ -607,7 +612,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="modo-5x2.js?v=20261124-folga-fixa-individual"></script>
+    <script src="modo-5x2.js?v=20261124-turmas-individuais"></script>
     <script src="app-reliability.js?v=20261108-modos"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */
@@ -1186,7 +1191,7 @@
                 estadoEscala.rascunhoBanco = true;
                 estadoEscala.rascunhoErro = false;
                 registrarRascunhoSalvo(true);
-                if (!estadoEscala.salvando && estadoEscala.pendente) atualizarStatusSalvamento('pendente','Rascunho salvo no banco · escala final ainda NÃO salva. Salve e confirme antes de imprimir.');
+                if (!estadoEscala.salvando && !estadoEscala.erro && estadoEscala.pendente) atualizarStatusSalvamento('pendente','Rascunho salvo no banco · escala final ainda NÃO salva. Salve e confirme antes de imprimir.');
                 return true;
             } catch(e) {
                 if (versao === versaoRascunhoBanco && data === document.getElementById('data_escala').value) {
@@ -1781,7 +1786,7 @@
 
         function getObjRegraFolgaCombinada(func, dataISO) {
             if (isDesativado(func, dataISO) || isDeFerias(func, dataISO) || getObjAusencia(func, dataISO)) return null;
-            if (MODO_5X2 && (folgaFixaDomSeg(turmaColaborador(func,dataISO),func.id) || !aprendizConfigurado(func))) return regraTurma(func,dataISO);
+            if (MODO_5X2 && (diasFixosDaTurma(func,turmaColaborador(func,dataISO)).length || !aprendizConfigurado(func))) return regraTurma(func,dataISO);
             if (!func.regrasFolga || !Array.isArray(func.regrasFolga)) return null;
 
             const dtEsc = new Date(dataISO + 'T00:00:00');
@@ -1789,7 +1794,7 @@
 
             for (let r of func.regrasFolga) {
                 if (!r) continue;
-                if (r.tipo === 'fixa' && r.dia === diaSemanaEsc) return { tipo: 'fixa', desc: 'Folga Fixa' };
+                if (regraFixaNoDia(r, Number(diaSemanaEsc))) return { tipo: 'fixa', desc: 'Folga Fixa' };
                 if (r.tipo === 'ciclo' && r.dia === diaSemanaEsc && r.dataBase && dataISO >= r.dataBase) {
                     const dtBas = new Date(r.dataBase + 'T00:00:00');
                     const diffTime = Math.abs(dtEsc - dtBas);
@@ -1801,7 +1806,7 @@
         }
 
         function getObjFolgaExtra(func, dataISO) {
-            if (MODO_5X2 && (folgaFixaDomSeg(turmaColaborador(func,dataISO),func.id) || !aprendizConfigurado(func))) return null;
+            if (MODO_5X2 && (diasFixosDaTurma(func,turmaColaborador(func,dataISO)).length || !aprendizConfigurado(func))) return null;
             if (isDesativado(func, dataISO) || isDeFerias(func, dataISO) || getObjAusencia(func, dataISO)) return null;
             if (!func.folgasExtras || !Array.isArray(func.folgasExtras)) return null;
             return func.folgasExtras.find(item => item.data === dataISO) || null;
@@ -2882,6 +2887,7 @@
 
         // ------------------ NAVEGAÇÃO DE ABAS ------------------
         function openTab(id, consultar = true) {
+            if (id === 'turmas5x2' && !MODO_5X2) id = 'historico';
             document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
 
             document.querySelectorAll('.tab-btn').forEach(button => {
@@ -2902,6 +2908,7 @@
             if (id === 'historico' && consultar) buscarHistorico();
             if (id === 'previsao') renderizarCalendario();
             if (id === 'ausencias') renderizarRelatorioAusencias();
+            if (id === 'turmas5x2') document.querySelectorAll('.participante-regra').forEach((campo,i)=>mostrarRegraParticipante(i,campo));
             if (id === 'configuracoes' && consultar) carregarConfiguracoes().then(()=>{renderTurnosConfigLista();renderTabelasExtrasConfigLista();});
         }
 

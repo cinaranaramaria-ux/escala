@@ -177,7 +177,8 @@
     <section id="turmas5x2" class="tab-content print-hide"><div class="card"><h2>Turmas e folgas 5×2</h2>
         <p>Colaboradores, férias e ausências usam o cadastro compartilhado. As folgas semanais deste modo seguem as turmas abaixo.</p>
         <label>Vigência a partir de<input id="turmasInicio" type="date" onchange="carregarTurmasEdicao()"></label>
-        <p id="turmasVersoes"></p><div id="turmasLista"></div>
+        <p id="turmasVersoes"></p><button type="button" class="btn-action" onclick="limparReferenciasDomingo()">Limpar referências de domingo desta vigência</button>
+        <div id="turmasLista"></div>
         <div class="status-actions"><button type="button" class="btn-action" onclick="adicionarTurma()">Adicionar turma</button><button id="salvarTurmas" type="button" class="btn-action" onclick="salvarTurmas5x2()">Salvar turmas</button><button type="button" class="btn-action" onclick="recuperarTurmasEdicao()">Recuperar alterações pendentes</button></div><p id="turmasStatus" role="status" aria-live="polite"></p>
         <details><summary>Conferir folgas por data</summary>
         <div class="monthly-holiday-fields"><label>Conferir regra salva na data<input id="dataConferenciaTurmas" type="date"></label><button type="button" class="btn-action" onclick="conferirFolgasTurmas()">Conferir folgas</button></div>
@@ -612,7 +613,7 @@
 <!-- </BLOCO_HTML_ESTRUTURA> -->
 
 
-    <script src="modo-5x2.js?v=20261124-turmas-individuais"></script>
+    <script src="modo-5x2.js?v=20261127-limpar-domingos"></script>
     <script src="app-reliability.js?v=20261108-modos"></script>
     <script>
 /* <BLOCO_JS_UTILITY> */

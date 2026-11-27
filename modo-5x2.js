@@ -178,6 +178,17 @@ function mostrarRegraParticipante(i,seletor) {
         campo.onchange=()=>definirReferenciaDomingo(i,id,campo.value,campo);
     }
 }
+function limparReferenciasDomingo() {
+    const status=document.getElementById('turmasStatus');
+    const inicio=document.getElementById('turmasInicio').value;
+    if (!inicio) { status.textContent='Escolha o início da vigência.'; return; }
+    const total=turmasEdicao.reduce((n,t)=>n+Object.values(t.referencias || {}).filter(Boolean).length,0);
+    if (!total) { status.textContent='As turmas desta vigência já estão sem referências de domingo.'; return; }
+    if (!confirm(`Limpar as referências de domingo (${total}) de todas as turmas da vigência de ${formatarDataBR(inicio)}? O ciclo passará a usar o domingo do cadastro individual, quando houver.`)) return;
+    for (const turma of turmasEdicao) turma.referencias={};
+    renderizarTurmasEdicao();
+    status.textContent='Referências de domingo limpas. Clique em Salvar turmas para confirmar a alteração.';
+}
 function definirReferenciaDomingo(i,id,data,campo) {
     if(data && new Date(`${data}T12:00:00Z`).getUTCDay()!==0) {
         if(campo) campo.value=turmasEdicao[i].referencias?.[id] || '';
